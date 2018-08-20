@@ -24,7 +24,9 @@ Additionally required modules are PyQt4 and caffe. The installation instructions
 Getting Started
 ------------------
 
-The software can be started by running ``oct_controller.py`` from ``src/controller``. To test the software, the folder ``140513_19`` located in the dummyData folder can be loaded. 
+The software can be started by running ``oct_controller.py`` from ``src/controller``. To test the software, download the pretrained caffe model from
+https://uni-bonn.sciebo.de/s/khbu3tAQ95a4oTy
+for layer segmentation. The path to the deep network can be set under the ``setting'' under ``File'' tab in the annotation software.
 
 There are different tools available to manually modifiy the layer segmentation determined by the CNN:
 
