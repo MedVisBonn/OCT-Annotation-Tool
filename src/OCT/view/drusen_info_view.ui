@@ -1,0 +1,646 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>drusenInfoTable</class>
+ <widget class="QWidget" name="drusenInfoTable">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>587</width>
+    <height>585</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Drusen Analysis</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_4">
+   <item>
+    <widget class="QGroupBox" name="groupBox">
+     <property name="title">
+      <string/>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_3">
+      <item>
+       <widget class="QGroupBox" name="groupBox_2">
+        <property name="title">
+         <string>Measurment unit</string>
+        </property>
+        <layout class="QGridLayout" name="gridLayout_2">
+         <item row="0" column="0">
+          <layout class="QHBoxLayout" name="horizontalLayout_2">
+           <item>
+            <widget class="QRadioButton" name="radioButton">
+             <property name="text">
+              <string>Pixel</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QRadioButton" name="radioButton_2">
+             <property name="text">
+              <string>Micrometer</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer_3">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeType">
+              <enum>QSizePolicy::MinimumExpanding</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>122</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_9">
+        <item>
+         <layout class="QVBoxLayout" name="verticalLayout_2">
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_3">
+            <item>
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Count:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="drusenCount">
+              <property name="text">
+               <string>13</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_4">
+            <item>
+             <widget class="QLabel" name="label_2">
+              <property name="text">
+               <string>Centeral position:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="drusenCenter">
+              <property name="text">
+               <string>(1,2)</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_5">
+            <item>
+             <widget class="QLabel" name="label_3">
+              <property name="text">
+               <string>Average area:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="drusenArea">
+              <property name="text">
+               <string>36</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_2">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Minimum</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>38</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <layout class="QVBoxLayout" name="verticalLayout">
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_6">
+            <item>
+             <widget class="QLabel" name="label_4">
+              <property name="text">
+               <string>Average height:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="drusenHeight">
+              <property name="text">
+               <string>4</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_7">
+            <item>
+             <widget class="QLabel" name="label_5">
+              <property name="text">
+               <string>Average volume:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="drusenVolume">
+              <property name="text">
+               <string>59</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_8">
+            <item>
+             <widget class="QLabel" name="drusenDiameter">
+              <property name="text">
+               <string>(Large, Small) diameter:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="label_12">
+              <property name="text">
+               <string>(7,4)</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QScrollArea" name="scrollArea">
+        <property name="widgetResizable">
+         <bool>true</bool>
+        </property>
+        <widget class="QWidget" name="scrollAreaWidgetContents">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>0</y>
+           <width>541</width>
+           <height>347</height>
+          </rect>
+         </property>
+         <layout class="QGridLayout" name="gridLayout">
+          <item row="0" column="0">
+           <widget class="QTableWidget" name="tableWidget">
+            <row>
+             <property name="text">
+              <string>1</string>
+             </property>
+            </row>
+            <row>
+             <property name="text">
+              <string>2</string>
+             </property>
+            </row>
+            <row>
+             <property name="text">
+              <string>3</string>
+             </property>
+            </row>
+            <row>
+             <property name="text">
+              <string>4</string>
+             </property>
+            </row>
+            <row>
+             <property name="text">
+              <string>5</string>
+             </property>
+            </row>
+            <row>
+             <property name="text">
+              <string>6</string>
+             </property>
+            </row>
+            <row>
+             <property name="text">
+              <string>7</string>
+             </property>
+            </row>
+            <row>
+             <property name="text">
+              <string>9</string>
+             </property>
+            </row>
+            <row>
+             <property name="text">
+              <string>10</string>
+             </property>
+            </row>
+            <row>
+             <property name="text">
+              <string>12</string>
+             </property>
+            </row>
+            <row>
+             <property name="text">
+              <string>13</string>
+             </property>
+            </row>
+            <column>
+             <property name="text">
+              <string>Center</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Area</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Height</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Volume</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Diameter</string>
+             </property>
+            </column>
+            <item row="0" column="0">
+             <property name="text">
+              <string>(1,2)</string>
+             </property>
+            </item>
+            <item row="0" column="1">
+             <property name="text">
+              <string>36</string>
+             </property>
+            </item>
+            <item row="0" column="2">
+             <property name="text">
+              <string>4</string>
+             </property>
+            </item>
+            <item row="0" column="3">
+             <property name="text">
+              <string>59</string>
+             </property>
+            </item>
+            <item row="0" column="4">
+             <property name="text">
+              <string>(7,4)</string>
+             </property>
+            </item>
+            <item row="1" column="0">
+             <property name="text">
+              <string>(1,2)</string>
+             </property>
+            </item>
+            <item row="1" column="1">
+             <property name="text">
+              <string>36</string>
+             </property>
+            </item>
+            <item row="1" column="2">
+             <property name="text">
+              <string>4</string>
+             </property>
+            </item>
+            <item row="1" column="3">
+             <property name="text">
+              <string>59</string>
+             </property>
+            </item>
+            <item row="1" column="4">
+             <property name="text">
+              <string>(7,4)</string>
+             </property>
+            </item>
+            <item row="2" column="0">
+             <property name="text">
+              <string>(1,2)</string>
+             </property>
+            </item>
+            <item row="2" column="1">
+             <property name="text">
+              <string>36</string>
+             </property>
+            </item>
+            <item row="2" column="2">
+             <property name="text">
+              <string>4</string>
+             </property>
+            </item>
+            <item row="2" column="3">
+             <property name="text">
+              <string>59</string>
+             </property>
+            </item>
+            <item row="2" column="4">
+             <property name="text">
+              <string>(7,4)</string>
+             </property>
+            </item>
+            <item row="3" column="0">
+             <property name="text">
+              <string>(1,2)</string>
+             </property>
+            </item>
+            <item row="3" column="1">
+             <property name="text">
+              <string>36</string>
+             </property>
+            </item>
+            <item row="3" column="2">
+             <property name="text">
+              <string>4</string>
+             </property>
+            </item>
+            <item row="3" column="3">
+             <property name="text">
+              <string>59</string>
+             </property>
+            </item>
+            <item row="3" column="4">
+             <property name="text">
+              <string>(7,4)</string>
+             </property>
+            </item>
+            <item row="4" column="0">
+             <property name="text">
+              <string>(1,2)</string>
+             </property>
+            </item>
+            <item row="4" column="1">
+             <property name="text">
+              <string>36</string>
+             </property>
+            </item>
+            <item row="4" column="2">
+             <property name="text">
+              <string>4</string>
+             </property>
+            </item>
+            <item row="4" column="3">
+             <property name="text">
+              <string>59</string>
+             </property>
+            </item>
+            <item row="4" column="4">
+             <property name="text">
+              <string>(7,4)</string>
+             </property>
+            </item>
+            <item row="5" column="0">
+             <property name="text">
+              <string>(1,2)</string>
+             </property>
+            </item>
+            <item row="5" column="1">
+             <property name="text">
+              <string>36</string>
+             </property>
+            </item>
+            <item row="5" column="2">
+             <property name="text">
+              <string>4</string>
+             </property>
+            </item>
+            <item row="5" column="3">
+             <property name="text">
+              <string>59</string>
+             </property>
+            </item>
+            <item row="5" column="4">
+             <property name="text">
+              <string>(7,4)</string>
+             </property>
+            </item>
+            <item row="6" column="0">
+             <property name="text">
+              <string>(1,2)</string>
+             </property>
+            </item>
+            <item row="6" column="1">
+             <property name="text">
+              <string>36</string>
+             </property>
+            </item>
+            <item row="6" column="2">
+             <property name="text">
+              <string>4</string>
+             </property>
+            </item>
+            <item row="6" column="3">
+             <property name="text">
+              <string>59</string>
+             </property>
+            </item>
+            <item row="6" column="4">
+             <property name="text">
+              <string>(7,4)</string>
+             </property>
+            </item>
+            <item row="7" column="0">
+             <property name="text">
+              <string>(1,2)</string>
+             </property>
+            </item>
+            <item row="7" column="1">
+             <property name="text">
+              <string>36</string>
+             </property>
+            </item>
+            <item row="7" column="2">
+             <property name="text">
+              <string>4</string>
+             </property>
+            </item>
+            <item row="7" column="3">
+             <property name="text">
+              <string>59</string>
+             </property>
+            </item>
+            <item row="7" column="4">
+             <property name="text">
+              <string>(7,4)</string>
+             </property>
+            </item>
+            <item row="8" column="0">
+             <property name="text">
+              <string>(1,2)</string>
+             </property>
+            </item>
+            <item row="8" column="1">
+             <property name="text">
+              <string>36</string>
+             </property>
+            </item>
+            <item row="8" column="2">
+             <property name="text">
+              <string>4</string>
+             </property>
+            </item>
+            <item row="8" column="3">
+             <property name="text">
+              <string>59</string>
+             </property>
+            </item>
+            <item row="8" column="4">
+             <property name="text">
+              <string>(7,4)</string>
+             </property>
+            </item>
+            <item row="9" column="0">
+             <property name="text">
+              <string>(1,2)</string>
+             </property>
+            </item>
+            <item row="9" column="1">
+             <property name="text">
+              <string>36</string>
+             </property>
+            </item>
+            <item row="9" column="2">
+             <property name="text">
+              <string>4</string>
+             </property>
+            </item>
+            <item row="9" column="3">
+             <property name="text">
+              <string>59</string>
+             </property>
+            </item>
+            <item row="9" column="4">
+             <property name="text">
+              <string>(7,4)</string>
+             </property>
+            </item>
+            <item row="10" column="0">
+             <property name="text">
+              <string>(1,2)</string>
+             </property>
+            </item>
+            <item row="10" column="1">
+             <property name="text">
+              <string>36</string>
+             </property>
+            </item>
+            <item row="10" column="2">
+             <property name="text">
+              <string>4</string>
+             </property>
+            </item>
+            <item row="10" column="3">
+             <property name="text">
+              <string>59</string>
+             </property>
+            </item>
+            <item row="10" column="4">
+             <property name="text">
+              <string>(7,4)</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </widget>
+      </item>
+     </layout>
+     <zorder>scrollArea</zorder>
+     <zorder>label</zorder>
+     <zorder>label_2</zorder>
+     <zorder>radioButton</zorder>
+     <zorder>label_3</zorder>
+     <zorder>label_4</zorder>
+     <zorder>label_5</zorder>
+     <zorder>drusenDiameter</zorder>
+     <zorder>drusenCount</zorder>
+     <zorder>drusenCenter</zorder>
+     <zorder>drusenArea</zorder>
+     <zorder>drusenHeight</zorder>
+     <zorder>drusenVolume</zorder>
+     <zorder>label_12</zorder>
+     <zorder>horizontalSpacer_2</zorder>
+     <zorder>horizontalSpacer_3</zorder>
+     <zorder></zorder>
+     <zorder>groupBox_2</zorder>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_10">
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeType">
+        <enum>QSizePolicy::MinimumExpanding</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>300</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QPushButton" name="pushButton">
+         <property name="text">
+          <string>&amp;Export</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_2">
+         <property name="text">
+          <string>&amp;Close</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

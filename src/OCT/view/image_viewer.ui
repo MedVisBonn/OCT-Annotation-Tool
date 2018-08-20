@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>imageEditor</class>
+ <widget class="QWidget" name="imageEditor">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>756</width>
+    <height>605</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>View</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>icons/633563-basic-icons/png/233-empty.png</normaloff>icons/633563-basic-icons/png/233-empty.png</iconset>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0">
+    <widget class="QGraphicsView" name="graphicsViewImageViewer"/>
+   </item>
+   <item row="1" column="0">
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QSpinBox" name="spinBoxSliceNum">
+       <property name="minimum">
+        <number>1</number>
+       </property>
+       <property name="maximum">
+        <number>1000</number>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QToolButton" name="toolButtonLink">
+       <property name="text">
+        <string>...</string>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>icons/633563-basic-icons/png/131-link.png</normaloff>icons/633563-basic-icons/png/131-link.png</iconset>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+  <action name="actionLinkView">
+   <property name="icon">
+    <iconset>
+     <normaloff>icons/633563-basic-icons/png/131-link.png</normaloff>icons/633563-basic-icons/png/131-link.png</iconset>
+   </property>
+   <property name="text">
+    <string>linkView</string>
+   </property>
+   <property name="toolTip">
+    <string>Link View</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

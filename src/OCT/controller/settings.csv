@@ -1,0 +1,10 @@
+Network,/home/gorgi/Desktop/OCT-GUI-Fin-Aug-20/OCT-Editing-Tool/src/OCT/network
+Caffe Path,/home/gorgi/Desktop/U-Net-3D/caffe_unet_3D_v1.0_patch/caffe/python
+Processor,gpu
+Processor ID,0
+Name of the training model file,aphseg_v5_test-train.prototxt
+Name of the model file,aphseg_v5_test.caffemodel
+Normalize Image,no
+Zero Center,no
+Number of Tiles,2
+Down Sample Factor,16

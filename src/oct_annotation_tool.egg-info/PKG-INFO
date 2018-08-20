@@ -1,0 +1,84 @@
+Metadata-Version: 1.1
+Name: oct-annotation-tool
+Version: 0.1
+Summary: This tool can be used to annotate OCT scanns
+Home-page: https://github.com/shekoufeh/oct_annotation_tool
+Author: Shekoufeh Gorgi Zadeh
+Author-email: gorgi@cs.uni-bonn.de
+License: GNU General Public License v3
+Description: -------------------
+        OCT-Annotation-Tool
+        -------------------
+        The OCT-Annotation Tool automaticall segments the RPE and BM layers in OCT scans using a convolution neuronal network. Uncertainty measures lead the user to those B-scans that probably need manual correction. In addition, the software automatically segments drusen from the RPE and BM layers and has tools for quickly editing them. An en face projection view helps to eliminate false drusen or to split them into smaller ones. It is also possible to analyse drusen size, number, volume and location, after the segmentation. Other biomarkers included into the software are GA and HRF. 
+        
+        * Free software: GNU General Public License v3
+        
+        Installation
+        ---------------
+        
+        This software requires python 2. Most of the required python modules are included in the setup.py file and can be installed by:
+        
+        ``pip install -e ~/setup.py``
+        
+        Additionally required modules are PyQt4 and caffe. The installation instructions can be found here:
+        
+        * PyQt4: http://pyqt.sourceforge.net/Docs/PyQt4/installation.html
+        
+        * caffe: http://caffe.berkeleyvision.org/installation.html
+        
+        
+        Getting Started
+        ------------------
+        
+        The software can be started by first changing to ``src/controller`` and then typing ``oct_controller.py``. To test the software, the folder ``140513_19`` located in the dummyData folder can be loaded. There are different views to explore the data:
+        
+        1) **B-scan Viewer**: This view allows the user to navigate through the different B-scans.
+        
+        2) **Layer Segmentation View**: It is possible to either load and edit an existing layer segmentation or to use the automatic RPE and BM layer segmentation of the software. Together with this view also a toolbox will appear. It can be used to edit the opacity of the B-scan and to correct the layer segmentation manually. Under view, it can be selected to include the segmentation uncertainty into the window. As measurement, either the proability, the entropy or both can be selected. The uncertainty will be displayed as a color coded table at the bottom of the viewer. The color of the ith cell represents the uncertainty in the ith B-scan. A lighter color corresponds to a higher uncertainty. 
+        
+        3) **Drusen Segmentation View**: This view will use previous drusen segmentation if provided. Otherwise, it will use the previously defined layers to automatically segment the drusen. Using the toolbox, the segmentation can be corrected manually. Sliders in the toolbox can be used to set the minimal druse height or pixel heigt in each column required for a druse to be marked in the scan.
+        
+        4) **Enface Projection View**: This view shows the area spanned by reticular drusen. One important tool for this view is the filtering tool. Bounding boxes can be drawn over the en face projection. These boxes can imply the the existence and the rough extent of the retiular drusen. A tool that visites each druse determined by connected component analysis individually for editing. The order in which the drusen are visited can be changed under view. It can be chosen between heigh, volume and brightness of the drusen. The default setting is height. 
+        
+        5) **Enface Drusen View**: The drusen segmentation is projected over the en face projection image to show the druse extent across B-scans. It filters drusen according to their size over the whole scan and not as in the drusen segmentation view per B-scan. 
+        
+        6) **Hyperreflective Foci View**: The HRF view can be used to do annotation at three levels: image level, box level and pixel level. Bounding bxoes can be drawn and an automatic HRF extractor can be used for pixel level HRF annotation. 
+        
+        7) **Geographic Atrophy View**: The ranges that show the existence of GA can be selected. 
+        
+        The rightermost button provides more information on the segmented drusen. It includes the numer of drusen in the OCT-scan, the position of each druse, the height, the area, the volume and the size in either pixel or micrometer units. This information can be exported in exel format.
+        
+        For a more detailed instruction, please refer to: link to pdf
+        
+        Authors
+        ----------
+        
+        * Shekoufeh Gorgi Zadeh (https://github.com/shekoufeh)
+        
+        
+        Credits
+        -------
+        This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
+        
+        .. _Cookiecutter: https://github.com/audreyr/cookiecutter
+        .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+        
+        
+        
+        =======
+        History
+        =======
+        
+        0.1 (2018-05-15)
+        ------------------
+        
+        * First release on PyPI.
+        
+Keywords: oct_annotation_tool
+Platform: UNKNOWN
+Classifier: Development Status :: 2 - Pre-Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7
