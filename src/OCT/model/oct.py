@@ -1145,21 +1145,50 @@ class OCT:
         d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]    
         return d2 
     
+    def walklevel(self,some_dir, level=1):
+        some_dir = some_dir.rstrip(os.path.sep)
+        assert os.path.isdir(some_dir)
+        num_sep = some_dir.count(os.path.sep)
+        for root, dirs, files in os.walk(some_dir):
+            yield root, dirs, files
+            num_sep_this = root.count(os.path.sep)
+            if num_sep + level <= num_sep_this:
+                del dirs[:]
+            
     def read_scan_from(self,scanPath):
-        d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]
         rawstack = list()
         ind = list()
         rawStackDict=dict()   
         rawSize=()
-        for fi in range(len(d2)):
-             filename = os.path.join(scanPath,d2[fi])
-             ftype = d2[fi].split('-')[-1]
-             if(ftype=='Input.tif'):
-                 ind.append(int(d2[fi].split('-')[0]))
+        idCounter=1
         
-                 raw = io.imread(filename)
-                 rawSize = raw.shape
-                 rawStackDict[ind[-1]]=raw
+        for root,dirs,files in os.walk(scanPath):
+            depth=len(scanPath.split(os.path.sep))
+            curDepth=len(root.split(os.path.sep))
+            if(curDepth>depth):
+                continue
+            if(len(files)<=0):
+                return
+            files.sort()
+            for fname in files:
+                if(fname=='enface.png'):
+                    continue
+                try:
+                    ftype = fname.split('-')[-1]
+                except:
+                    ftype=""
+                if(ftype=='Input.tif'):
+                    ind.append(int(fname.split('-')[0]))
+            
+                    raw = io.imread(os.path.join(root,fname))
+                    rawSize = raw.shape
+                    rawStackDict[ind[-1]]=raw
+                else:
+                    ind.append(idCounter)
+                    idCounter+=1
+                    raw = io.imread(os.path.join(root,fname))
+                    rawSize = raw.shape
+                    rawStackDict[ind[-1]]=raw
         
         rawstack=np.empty((rawSize[0],rawSize[1],len(ind)))   
         keys=rawStackDict.keys()
