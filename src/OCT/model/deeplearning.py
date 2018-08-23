@@ -104,6 +104,16 @@ class DeepLearningLayerSeg:
                 break
         sys.path.append(self.caffePath)
         
+        try:
+            imp.find_module('caffe')
+            caffeFound = True
+        except ImportError:
+            caffeFound = False
+            
+        if( caffeFound ):
+            global caffe
+            import caffe
+            
     def set_yLength(self,val):
         self.yLength=val
         
