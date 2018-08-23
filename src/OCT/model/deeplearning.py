@@ -16,14 +16,6 @@ import skimage.graph as skg
 from skimage import filters
 from matplotlib import pyplot as plt
 
-try:
-    imp.find_module('caffe')
-    caffeFound = True
-except ImportError:
-    caffeFound = False
-    
-if( caffeFound ):   
-    import caffe
 
 #==============================================================================
 # General functions used for image trasfomation and shortest path finding    
@@ -103,7 +95,8 @@ class DeepLearningLayerSeg:
                 sys.path.remove(p)
                 break
         sys.path.append(self.caffePath)
-        
+        global caffeFound
+        caffeFound=False
         try:
             imp.find_module('caffe')
             caffeFound = True
@@ -168,14 +161,11 @@ class DeepLearningLayerSeg:
         if(caffeFound):
             # Initial steps, scan preparation
             scans=self.preprocess_data(scans)
-            
             # Do image tiling / Feed into the network
             scores=self.tiled_forward(scans)
-        
             # Keep probability images
             probMaps=self.convert_scores_to_probabilities(scores)
             self.octScan.set_prob_maps(probMaps)
-           
             # Shortest path
             shortestPaths= self.update_shortest_path()
             return shortestPaths
@@ -343,8 +333,6 @@ class DeepLearningLayerSeg:
                 self.probabilityVals[c]=0.05
                 self.entropyVals[c]=0.05
             return
-        
-        
         
         self.octScan.controller.show_progress_bar()
 
