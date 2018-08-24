@@ -20,8 +20,6 @@ from matplotlib import pyplot as plt
 #==============================================================================
 # General functions used for image trasfomation and shortest path finding    
 #==============================================================================
-os.sys.path.remove("/home/gorgi/Desktop/CaffeV1/caffe/python")
-os.sys.path.remove("/home/gorgi/Desktop/U-Net-3D/caffe_unet_3D_v1.0_patch/caffe/python")
 def im2double(img):
     return (img.astype('float64') ) / 255.0
 
@@ -115,6 +113,7 @@ class DeepLearningLayerSeg:
             global caffe
             import caffe
             print "Caffe succesfully imported!"
+            
     def set_yLength(self,val):
         self.yLength=val
         
@@ -250,7 +249,7 @@ class DeepLearningLayerSeg:
         
         caffe.set_device(self.processorId)
         net = caffe.Net( os.path.join(net_path , model_def_file),\
-            os.path.join(net_path,self.modelFile),caffe.TEST)
+            caffe.TEST,weights=os.path.join(net_path,self.modelFile))
         
         progressVal=self.octScan.get_progress_val()
         self.octScan.set_progress_val(progressVal+2)
