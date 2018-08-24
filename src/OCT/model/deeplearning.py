@@ -20,6 +20,8 @@ from matplotlib import pyplot as plt
 #==============================================================================
 # General functions used for image trasfomation and shortest path finding    
 #==============================================================================
+os.sys.path.remove("/home/gorgi/Desktop/CaffeV1/caffe/python")
+os.sys.path.remove("/home/gorgi/Desktop/U-Net-3D/caffe_unet_3D_v1.0_patch/caffe/python")
 def im2double(img):
     return (img.astype('float64') ) / 255.0
 
@@ -94,19 +96,25 @@ class DeepLearningLayerSeg:
             if( p == self.caffePath ):
                 sys.path.remove(p)
                 break
+        for p in sys.path:
+            if('caffe' in p):
+                print "Path to Caffe:", p
+                
         sys.path.append(self.caffePath)
         global caffeFound
         caffeFound=False
         try:
+            print "Trying to import caffe..."
             imp.find_module('caffe')
             caffeFound = True
         except ImportError:
+            print "Caffe not found!"
             caffeFound = False
             
         if( caffeFound ):
             global caffe
             import caffe
-            
+            print "Caffe succesfully imported!"
     def set_yLength(self,val):
         self.yLength=val
         
@@ -158,7 +166,9 @@ class DeepLearningLayerSeg:
         return (None,None)
         
     def get_layer_seg_from_deepnet(self,scans):
+        print "Layer seg using deep net. Caffe status", caffeFound
         if(caffeFound):
+            
             # Initial steps, scan preparation
             scans=self.preprocess_data(scans)
             # Do image tiling / Feed into the network
