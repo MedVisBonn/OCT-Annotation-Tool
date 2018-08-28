@@ -20,6 +20,7 @@ Additionally required modules are PyQt4 and caffe with U-Net patch included. The
 
 * caffe: https://lmb.informatik.uni-freiburg.de/resources/opensource/caffe_unet_3D_v1.0.tar.gz
 
+For caffe installation, follow the instructions in the README file in the zipped file. 
 
 Getting Started
 ------------------
