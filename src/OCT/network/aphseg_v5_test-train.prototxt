@@ -31,75 +31,75 @@ layer {
 #------- On The Fly Deformation ---------
 
 
-#layer {
-#  name: "create_deformation"
-#  type: "CreateDeformation"
-#  top: "def"
-#  include {
-#    phase: TRAIN
-#  }
-#  create_deformation_param {
-#    batch_size: 1
-#    ny: 444
-#    nx: 700
-#    ncomponents: 2
-#    random_elastic_grid_spacing {
-#      v: 32
-#      v: 32
-#    }
-#    random_elastic_deform_magnitude {
-#      v: 4
-#      v: 4
-#    }
-#    random_rotate_from { 
-#      v: -10
-#    }
-#    random_rotate_to {
-#      v: 10
-#    }
-#    random_offset_from {
-#      v: -5
-#      v: -5
-#    }
-#    random_offset_to {
-#      v: 5
-#      v: 5
-#    }
-#    random_offset_range_from_ignore_label: 0
-#  }
-#}
-#layer {
-#  name: "def_data-defdata"
-#  type: "ApplyDeformation"
-#  bottom: "data"
-#  bottom: "def"
-#  top: "defdata"
-#  include {
-#    phase: TRAIN
-#  }
-#  apply_deformation_param {
-#    interpolation: "linear"
-#    extrapolation: "mirror"
-#  }
-#}
+layer {
+  name: "create_deformation"
+  type: "CreateDeformation"
+  top: "def"
+  include {
+    phase: TRAIN
+  }
+  create_deformation_param {
+    batch_size: 1
+    ny: 444
+    nx: 700
+    ncomponents: 2
+    random_elastic_grid_spacing {
+      v: 32
+      v: 32
+    }
+    random_elastic_deform_magnitude {
+      v: 4
+      v: 4
+    }
+    random_rotate_from { 
+      v: -10
+    }
+    random_rotate_to {
+      v: 10
+    }
+    random_offset_from {
+      v: -5
+      v: -5
+    }
+    random_offset_to {
+      v: 5
+      v: 5
+    }
+    random_offset_range_from_ignore_label: 0
+  }
+}
+layer {
+  name: "def_data-defdata"
+  type: "ApplyDeformation"
+  bottom: "data"
+  bottom: "def"
+  top: "defdata"
+  include {
+    phase: TRAIN
+  }
+  apply_deformation_param {
+    interpolation: "linear"
+    extrapolation: "mirror"
+  }
+}
 
-#layer {
-#  name: "val_aug-d0a"
-#  type: "ValueAugmentation"
-#  bottom: "defdata"
-#  top: "d0a"
-#  include {
-#    phase: TRAIN
-#  }
-#  value_augmentation_param {
-#    black_from: -0.05
-#    black_to: 0.05
-#    white_from: 0.95
-#    white_to: 1.05
-#    slope_min: 0.8
-#    slope_max: 1.2
-#  }
-#}
+layer {
+  name: "val_aug-d0a"
+  type: "ValueAugmentation"
+  bottom: "defdata"
+  top: "d0a"
+  include {
+    phase: TRAIN
+  }
+  value_augmentation_param {
+    black_from: -0.05
+    black_to: 0.05
+    white_from: 0.95
+    white_to: 1.05
+    slope_min: 0.8
+    slope_max: 1.2
+  }
+}
 
 #----------------------------------------
 
@@ -1794,36 +1794,36 @@ layer {
 }
 
 #-------------------------
-#layer {
-#  name: "def_label-crop"
-#  type: "ApplyDeformation"
-#  bottom: "label"
-#  bottom: "def"
-#  top: "labelcrop"
-#  include {
-#    phase: TRAIN
-#  }
-#  apply_deformation_param {
-#    interpolation: "nearest"
-#    extrapolation: "mirror"
-#    output_shape_from: "scaleu0d"
-#  }
-#}
-#layer {
-#  name: "def_weights-crop"
-#  type: "ApplyDeformation"
-#  bottom: "weight"
-#  bottom: "def"
-#  top: "weightscrop"
-#  include {
-#    phase: TRAIN
-#  }
-#  apply_deformation_param {
-#    interpolation: "nearest"
-#    extrapolation: "mirror"
-#    output_shape_from: "scaleu0d"
-#  }
-#}
+layer {
+  name: "def_label-crop"
+  type: "ApplyDeformation"
+  bottom: "label"
+  bottom: "def"
+  top: "labelcrop"
+  include {
+    phase: TRAIN
+  }
+  apply_deformation_param {
+    interpolation: "nearest"
+    extrapolation: "mirror"
+    output_shape_from: "scaleu0d"
+  }
+}
+layer {
+  name: "def_weights-crop"
+  type: "ApplyDeformation"
+  bottom: "weight"
+  bottom: "def"
+  top: "weightscrop"
+  include {
+    phase: TRAIN
+  }
+  apply_deformation_param {
+    interpolation: "nearest"
+    extrapolation: "mirror"
+    output_shape_from: "scaleu0d"
+  }
+}
 #-------------------------
 layer {
   name: "accuracy"

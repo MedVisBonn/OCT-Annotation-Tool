@@ -113,7 +113,6 @@ class DeepLearningLayerSeg:
             global caffe
             import caffe
             print "Caffe succesfully imported!"
-            
     def set_yLength(self,val):
         self.yLength=val
         
@@ -249,7 +248,7 @@ class DeepLearningLayerSeg:
         
         caffe.set_device(self.processorId)
         net = caffe.Net( os.path.join(net_path , model_def_file),\
-            caffe.TEST,weights=os.path.join(net_path,self.modelFile))
+            os.path.join(net_path,self.modelFile),caffe.TEST)
         
         progressVal=self.octScan.get_progress_val()
         self.octScan.set_progress_val(progressVal+2)
