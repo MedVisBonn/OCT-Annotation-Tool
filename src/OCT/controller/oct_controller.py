@@ -959,12 +959,12 @@ class OCTController:
        
         elif(callerName=='enfaceDrusenViewer'):
             if(color[0]==0):
-                image[y,x]=color[0]
+                image[int(y),int(x)]=color[0]
                 prevValues=self.oct.remove_druse_at([y],[x])
                 self.slice_value_changed(sliceNum,callerName='drusenViewer',\
                     furtherUpdate=False)
         else:
-            image[y,x]=color[0]
+            image[int(y),int(x)]=color[0]
         self.mainWindowUi.content_changed(callerName)
         if(not undoRedo):
             layerName=''
@@ -974,12 +974,12 @@ class OCTController:
                 layerName='RPE'
             if(type(x)==list):
                
-                if(oldValue!=image[y[-1],x[-1]]):
+                if(oldValue!=image[int(y[-1]),int(x[-1])]):
                     self.mainWindowUi.draw_pen_command(x,y,color,callerName,\
                      sliceNum,prevValues,[y],[x],oldValue,redoValues,layerName)
 
             else:
-                if(oldValue!=image[y,x]):
+                if(oldValue!=image[int(y),int(x)]):
                     self.mainWindowUi.draw_pen_command(x,y,color,callerName,\
                      sliceNum,prevValues,[y],[x],oldValue,redoValues,layerName)
 

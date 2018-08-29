@@ -682,7 +682,7 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
             
         if(self.updateGrab):
             self.grabPosition=self.x
-            self.controller.grap_position_changed(self.x,self.y,self.etype)
+            self.controller.grap_position_changed(int(self.x),int(self.y),self.etype)
             
     def copy_source_label_to_destination(self,y,x):
         if(self.labels is None):
@@ -861,8 +861,8 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         prev=self.mainPhoto
         color=self.color.getRgb()
         
-        prev=self.controller.draw_line(prev,self.line.x1(),self.line.y1(),\
-                                self.line.x2(),self.line.y2(),color,self.etype)
+        prev=self.controller.draw_line(prev,int(self.line.x1()),int(self.line.y1()),\
+                                int(self.line.x2()),int(self.line.y2()),color,self.etype)
         
         self.set_main_photo(prev)
         del self.line
@@ -875,8 +875,8 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         self.prevX=self.x if self.prevX<0 else self.prevX
         self.prevY=self.y if self.prevY<0 else self.prevY
         color=self.color.getRgb()
-        prev=self.controller.draw_line(prev,self.prevX,self.prevY,self.x,\
-            self.y,color,self.etype,undoRedo=True,movingMouse=True)
+        prev=self.controller.draw_line(prev,int(self.prevX),int(self.prevY),int(self.x),\
+            int(self.y),color,self.etype,undoRedo=True,movingMouse=True)
         self.set_main_photo(prev)
         self.combine_images()
         self.update()
@@ -885,7 +885,7 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
     
     def draw_point_moving_mouse_undo_redo(self,prevX,prevY,x,y,color):
         prev=self.mainPhoto
-        prev=self.controller.draw_line(prev,prevX,prevY,x,y,color,self.etype,\
+        prev=self.controller.draw_line(prev,int(prevX),int(prevY),int(x),int(y),color,self.etype,\
             undoRedo=True)
         self.set_main_photo(prev)
         self.combine_images()
@@ -903,7 +903,7 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         self.prevY=self.y
         prev=self.mainPhoto
         color=self.color.getRgb()
-        prev=self.controller.draw_point(prev,self.x,self.y,color,self.sliceNum,\
+        prev=self.controller.draw_point(prev,int(self.x),int(self.y),color,self.sliceNum,\
             self.etype)
         self.set_main_photo(prev)
         self.combine_images()
@@ -911,7 +911,7 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         
     def draw_point_undo_redo(self,x,y,color):
         prev=self.mainPhoto
-        prev=self.controller.draw_point(prev,x,y,color,self.sliceNum,self.etype,\
+        prev=self.controller.draw_point(prev,int(x),int(y),color,self.sliceNum,self.etype,\
             undoRedo=True)
         self.set_main_photo(prev)
         self.combine_images()

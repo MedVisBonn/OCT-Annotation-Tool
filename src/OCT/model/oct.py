@@ -4,7 +4,7 @@ Created in 2018
 
 @author: Shekoufeh Gorgi Zadeh
 """
-
+import re
 import os
 import pickle
 import numpy as np
@@ -1154,7 +1154,18 @@ class OCT:
             num_sep_this = root.count(os.path.sep)
             if num_sep + level <= num_sep_this:
                 del dirs[:]
-            
+    
+    def atoi(self,text):
+        return int(text) if text.isdigit() else text
+
+    def natural_keys(self,text):
+        '''
+        alist.sort(key=natural_keys) sorts in human order
+        http://nedbatchelder.com/blog/200712/human_sorting.html
+        (See Toothy's implementation in the comments)
+        '''
+        return [ self.atoi(c) for c in re.split('(\d+)', text) ]
+    
     def read_scan_from(self,scanPath):
         rawstack = list()
         ind = list()
@@ -1169,7 +1180,7 @@ class OCT:
                 continue
             if(len(files)<=0):
                 return
-            files.sort()
+            files.sort(key=self.natural_keys)
             for fname in files:
                 if(fname=='enface.png'):
                     continue
