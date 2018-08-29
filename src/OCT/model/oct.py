@@ -1184,9 +1184,14 @@ class OCT:
                     rawSize = raw.shape
                     rawStackDict[ind[-1]]=raw
                 else:
+                    try:
+                        raw = io.imread(os.path.join(root,fname))
+                    except:
+                        print "Warning reading file:"+fname+" is not image."
+                        continue
                     ind.append(idCounter)
                     idCounter+=1
-                    raw = io.imread(os.path.join(root,fname))
+                    
                     rawSize = raw.shape
                     rawStackDict[ind[-1]]=raw
         
