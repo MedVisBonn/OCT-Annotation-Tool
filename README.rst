@@ -14,19 +14,20 @@ This software requires python 2. Most of the required python modules are include
 
 where path is the path to the folder that contains the setup.py file.
 
-Additionally required modules are PyQt4 and caffe. The installation instructions can be found here:
+Additionally required modules are PyQt4 and caffe with U-Net patch included. The following links can be used for the installation:
 
 * PyQt4: http://pyqt.sourceforge.net/Docs/PyQt4/installation.html
 
-* caffe: http://caffe.berkeleyvision.org/installation.html
+* caffe: https://lmb.informatik.uni-freiburg.de/resources/opensource/caffe_unet_3D_v1.0.tar.gz
 
+For caffe installation, follow the instructions in the README file in the zipped file. 
 
 Getting Started
 ------------------
 
 The software can be started by running ``oct_controller.py`` from ``src/OCT/controller``. To test the software, download the pretrained caffe model from
 https://uni-bonn.sciebo.de/s/khbu3tAQ95a4oTy
-for layer segmentation and store it in ``src/OCT/network`` folder. The path to the deep network can be set under the ``setting`` under ``File`` tab in the annotation software.
+for layer segmentation and store it in ``src/OCT/network`` folder. The path to the deep network can be set under the ``setting`` under ``File`` tab in the annotation software. For Caffe Path, use the link to ``<caffe_dir>/python``.
 
 There are different tools available to manually modifiy the layer segmentation determined by the CNN:
 
