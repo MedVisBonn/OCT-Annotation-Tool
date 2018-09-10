@@ -9,7 +9,9 @@ Created in 2018
 import os, sys, inspect
 from PyQt4 import QtCore, QtGui
 
-controllerPath=os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0]))[:-4]+"controller"
+global sfwPath
+sfwPath=os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0]))[:-4]
+controllerPath=sfwPath+"controller"
 if controllerPath not in sys.path:
      sys.path.insert(0, controllerPath)
 
@@ -149,7 +151,7 @@ class Ui_toolBox(object):
         self.toolButtonPen = QtGui.QToolButton(self.groupBox_toolBox)
         self.toolButtonPen.setMinimumSize(QtCore.QSize(34, 34))
         icon5 = QtGui.QIcon()
-        icon5.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon5.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","pen.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonPen.setIcon(icon5)
@@ -158,7 +160,7 @@ class Ui_toolBox(object):
         self.toolButtonLine = QtGui.QToolButton(self.groupBox_toolBox)
         self.toolButtonLine.setMinimumSize(QtCore.QSize(34, 34))
         icon6 = QtGui.QIcon()
-        icon6.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon6.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","line.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonLine.setIcon(icon6)
@@ -167,20 +169,20 @@ class Ui_toolBox(object):
         self.toolButtonFill = QtGui.QToolButton(self.groupBox_toolBox)
         self.toolButtonFill.setMinimumSize(QtCore.QSize(34, 34))
         icon7 = QtGui.QIcon()
-        icon7.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon7.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","paint.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonFill.setIcon(icon7)
         self.toolButtonFill.setObjectName(_fromUtf8("toolButtonFill"))
         self.gridLayout_2.addWidget(self.toolButtonFill, 0, 2, 1, 1)
         icon9 = QtGui.QIcon()
-        icon9.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon9.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","chain.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonMorphology = QtGui.QToolButton(self.groupBox_toolBox)
         self.toolButtonMorphology.setMinimumSize(QtCore.QSize(34, 34))
         icon10 = QtGui.QIcon()
-        icon10.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon10.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","scale.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonMorphology.setIcon(icon10)
@@ -189,7 +191,7 @@ class Ui_toolBox(object):
         self.toolButtonDrawDru = QtGui.QToolButton(self.groupBox_toolBox)
         self.toolButtonDrawDru.setMinimumSize(QtCore.QSize(34, 34))
         icon11 = QtGui.QIcon()
-        icon11.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon11.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","drawDru.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonDrawDru.setIcon(icon11)
@@ -198,7 +200,7 @@ class Ui_toolBox(object):
         self.toolButtonFilterDru = QtGui.QToolButton(self.groupBox_toolBox)
         self.toolButtonFilterDru.setMinimumSize(QtCore.QSize(34, 34))
         icon12 = QtGui.QIcon()
-        icon12.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon12.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","heightThreshold.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonFilterDru.setIcon(icon12)
@@ -208,7 +210,7 @@ class Ui_toolBox(object):
         self.toolButtonGrab.setMinimumSize(QtCore.QSize(34, 34))
         self.toolButtonGrab.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
         icon13 = QtGui.QIcon()
-        icon13.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon13.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","grab.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonGrab.setIcon(icon13)
@@ -221,7 +223,7 @@ class Ui_toolBox(object):
         self.toolButtonCCA.setMinimumSize(QtCore.QSize(34, 34))
         self.toolButtonCCA.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
         icon14 = QtGui.QIcon()
-        icon14.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon14.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","CCA.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonCCA.setIcon(icon14)
@@ -232,7 +234,7 @@ class Ui_toolBox(object):
         self.toolButtonNextComp.setMinimumSize(QtCore.QSize(34, 34))
         self.toolButtonNextComp.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
         icon15 = QtGui.QIcon()
-        icon15.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon15.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","next.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonNextComp.setIcon(icon15)
@@ -243,7 +245,7 @@ class Ui_toolBox(object):
         self.toolButtonPrevComp.setMinimumSize(QtCore.QSize(34, 34))
         self.toolButtonPrevComp.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
         icon16 = QtGui.QIcon()
-        icon16.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon16.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","prev.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonPrevComp.setIcon(icon16)
@@ -255,7 +257,7 @@ class Ui_toolBox(object):
         self.toolButtonCheckComp.setMinimumSize(QtCore.QSize(34, 34))
         self.toolButtonCheckComp.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
         icon17 = QtGui.QIcon()
-        icon17.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon17.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","check.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonCheckComp.setIcon(icon17)
@@ -266,7 +268,7 @@ class Ui_toolBox(object):
         self.toolButtonUnCheckComp.setMinimumSize(QtCore.QSize(34, 34))
         self.toolButtonUnCheckComp.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
         icon18 = QtGui.QIcon()
-        icon18.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon18.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","cancel.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonUnCheckComp.setIcon(icon18)
@@ -278,7 +280,7 @@ class Ui_toolBox(object):
         self.toolButtonBBox.setMinimumSize(QtCore.QSize(34, 34))
         self.toolButtonBBox.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
         icon27 = QtGui.QIcon()
-        icon27.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon27.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","bbox.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonBBox.setIcon(icon27)
@@ -289,7 +291,7 @@ class Ui_toolBox(object):
         self.toolButtonCostPnt.setMinimumSize(QtCore.QSize(34, 34))
         self.toolButtonCostPnt.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
         icon28 = QtGui.QIcon()
-        icon28.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon28.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","CSP.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonCostPnt.setIcon(icon28)
@@ -300,7 +302,7 @@ class Ui_toolBox(object):
         self.toolButtonPolyFit.setMinimumSize(QtCore.QSize(34, 34))
         self.toolButtonPolyFit.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
         icon29 = QtGui.QIcon()
-        icon29.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon29.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","polyfit.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonPolyFit.setIcon(icon29)
@@ -311,7 +313,7 @@ class Ui_toolBox(object):
         self.toolButtonSplitDrusen.setMinimumSize(QtCore.QSize(34, 34))
         self.toolButtonSplitDrusen.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
         icon30 = QtGui.QIcon()
-        icon30.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon30.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","split.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonSplitDrusen.setIcon(icon30)
@@ -420,7 +422,7 @@ class Ui_toolBox(object):
             QtGui.QSizePolicy.Fixed)
         self.toolButtonFilterDruImm.setSizePolicy(sizePolicy2)
         icon18 = QtGui.QIcon()
-        icon18.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon18.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","heightThreshold.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonFilterDruImm.setText('Apply')

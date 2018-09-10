@@ -17,10 +17,12 @@ from PyQt4 import QtCore, QtGui
 from matplotlib import pyplot as plt
 from drusen_info_view import Ui_drusenInfoTable
 
-controllerPath=os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0]))[:-4]+"controller"
+global sfwPath
+sfwPath=os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0]))[:-4]
+controllerPath=sfwPath+"controller"
 if controllerPath not in sys.path:
      sys.path.insert(0, controllerPath)
-
+     
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
 except AttributeError:
@@ -598,7 +600,7 @@ class Ui_MainWindow(object):
         MainWindow.setObjectName(_fromUtf8("MainWindow"))
         MainWindow.resize(800, 965)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view","icons",\
+        icon.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view","icons",\
             "icons","empty.png"))), QtGui.QIcon.Normal,\
             QtGui.QIcon.Off)
         MainWindow.setWindowIcon(icon)
@@ -645,7 +647,7 @@ class Ui_MainWindow(object):
         
         self.action_Open = QtGui.QAction(MainWindow)
         icon10 = QtGui.QIcon()
-        icon10.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon10.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","folderrr.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.action_Open.setIcon(icon10)
@@ -658,7 +660,7 @@ class Ui_MainWindow(object):
         
         self.action_Save = QtGui.QAction(MainWindow)
         icon11 = QtGui.QIcon()
-        icon11.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon11.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","saveFloppy.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.action_Save.setIcon(icon11)
@@ -666,7 +668,7 @@ class Ui_MainWindow(object):
         
         self.action_Save_As = QtGui.QAction(MainWindow)
         icon20 = QtGui.QIcon()
-        icon20.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon20.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","saveAsFloppy.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.action_Save_As.setIcon(icon20)
@@ -674,7 +676,7 @@ class Ui_MainWindow(object):
         
         self.action_Toolbox = QtGui.QAction(MainWindow)
         icon12 = QtGui.QIcon()
-        icon12.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon12.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","tools.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.action_Toolbox.setIcon(icon12)
@@ -684,7 +686,7 @@ class Ui_MainWindow(object):
         
         self.actionShowBscans = QtGui.QAction(MainWindow)
         icon19 = QtGui.QIcon()
-        icon19.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon19.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","bscan.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionShowBscans.setIcon(icon19)
@@ -692,7 +694,7 @@ class Ui_MainWindow(object):
         
         self.actionFindLayers = QtGui.QAction(MainWindow)
         icon13 = QtGui.QIcon()
-        icon13.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon13.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","layers.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionFindLayers.setIcon(icon13)
@@ -701,14 +703,14 @@ class Ui_MainWindow(object):
         
         self.actionFindDrusen = QtGui.QAction(MainWindow)
         icon14 = QtGui.QIcon()
-        icon14.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon14.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","druseSeg.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionFindDrusen.setIcon(icon14)
         self.actionFindDrusen.setObjectName(_fromUtf8("actionFindDrusen"))
         self.actionShowEnface = QtGui.QAction(MainWindow)
         icon15 = QtGui.QIcon()
-        icon15.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon15.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","enfaceProj.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionShowEnface.setIcon(icon15)
@@ -718,7 +720,7 @@ class Ui_MainWindow(object):
         
         self.actionShowEnfaceDrusen = QtGui.QAction(MainWindow)
         icon16 = QtGui.QIcon()
-        icon16.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon16.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","enfaceDru.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionShowEnfaceDrusen.setIcon(icon16)
@@ -730,7 +732,7 @@ class Ui_MainWindow(object):
         
         self.actionShowHRF = QtGui.QAction(MainWindow)
         icon23 = QtGui.QIcon()
-        icon23.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon23.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","hrf.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionShowHRF.setIcon(icon23)
@@ -738,7 +740,7 @@ class Ui_MainWindow(object):
         
         self.actionShowGA = QtGui.QAction(MainWindow)
         icon24 = QtGui.QIcon()
-        icon24.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon24.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","GA.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionShowGA.setIcon(icon24)
@@ -747,7 +749,7 @@ class Ui_MainWindow(object):
         
         self.actionShow3D = QtGui.QAction(MainWindow)
         icon17 = QtGui.QIcon()
-        icon17.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon17.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","3DView.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionShow3D.setIcon(icon17)
@@ -757,7 +759,7 @@ class Ui_MainWindow(object):
         
         self.actionMeasureDrusen = QtGui.QAction(MainWindow)
         icon18 = QtGui.QIcon()
-        icon18.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon18.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","druAnalysis.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionMeasureDrusen.setIcon(icon18)
@@ -765,7 +767,7 @@ class Ui_MainWindow(object):
         
         self.actionUndo = QtGui.QAction(MainWindow)
         icon21 = QtGui.QIcon()
-        icon21.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon21.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","undo.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionUndo.setIcon(icon21)
@@ -773,7 +775,7 @@ class Ui_MainWindow(object):
         
         self.actionRedo = QtGui.QAction(MainWindow)
         icon22 = QtGui.QIcon()
-        icon22.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join("..","view",\
+        icon22.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
             "icons","icons","redo.png"))),\
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionRedo.setIcon(icon22)

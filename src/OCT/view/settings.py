@@ -5,8 +5,11 @@ Created in 2018
 @author: Tabea Viviane Riepe
 """
 
-import os
+import os, inspect
 from PyQt4 import QtCore, QtGui
+
+global sfwPath
+sfwPath=os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0]))[:-4]
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -187,8 +190,8 @@ class Ui_settings(object):
         
         
         #If the log file already exists, the settings are imported into the window:
-        if os.path.isfile('settings.csv'):
-            with open('settings.csv') as f:
+        if os.path.isfile(os.path.join(sfwPath,'controller','settings.csv')):
+            with open(os.path.join(sfwPath,'controller','settings.csv')) as f:
                 content = f.read().split('\n')
             mod_content = []
             for element in content:
@@ -227,7 +230,7 @@ class Ui_settings(object):
       
     def on_accept_clicked(self):
         '''This function writes the inserted data into a csv file.'''
-        with open('settings.csv','w') as f:
+        with open(os.path.join(sfwPath,'controller','settings.csv'),'w') as f:
             f.write(self.network.text() + ',' + self.path_chosen.text() + '\n')
             f.write(self.caffePath.text() + ',' + self.path_chosen2.text() + '\n')
             f.write(self.processor.text() + ',' + self.processor_edit.currentText() + '\n')
