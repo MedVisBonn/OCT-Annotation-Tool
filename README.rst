@@ -1,7 +1,7 @@
 -------------------
 OCT-Annotation-Tool
 -------------------
-The OCT-Annotation Tool automaticall segments the RPE and BM layers in OCT scans using a convolution neuronal network. Uncertainty measures lead the user to those B-scans that probably need manual correction. In addition, the software automatically segments drusen from the RPE and BM layers and has tools for quickly editing them.
+The OCT-Annotation Tool automatically segments the RPE and BM layers in OCT scans using a convolution neuronal network. Uncertainty measures lead the user to those B-scans that probably need manual correction. In addition, the software automatically segments drusen from the RPE and BM layers and has tools for quickly editing them.
 
 * Free software: GNU General Public License v3
 
@@ -27,13 +27,13 @@ Getting Started
 
 The software can be started by running ``oct_controller.py`` from ``src/OCT/controller``. To test the software, download the pretrained caffe model from
 https://uni-bonn.sciebo.de/s/khbu3tAQ95a4oTy
-for layer segmentation and store it in ``src/OCT/network`` folder. The path to the deep network can be set under the ``setting`` under ``File`` tab in the annotation software. For Caffe Path, use the link to ``<caffe_dir>/python``.
+for layer segmentation and store it in ``src/OCT/network`` folder. The path to the deep network should be set under the ``setting`` under ``File`` tab in the annotation software. For Caffe Path, use the link to ``<caffe_dir>/python``.
 
 There are different tools available to manually modifiy the layer segmentation determined by the CNN:
 
 1) **Pen**: Mark individual pixels as belonging to the selected layer
 
-2) **Line Marker**: Mark evey pixel along a line segment as belonging to the selected layer
+2) **Line Marker**: Mark every pixel along a line segment as belonging to the selected layer
 
 3) **Constrained Shortest Path Tool (CSP)**: Select a single point through which the new shortest path is enforced to run
 
@@ -41,8 +41,15 @@ There are different tools available to manually modifiy the layer segmentation d
 
 Additionally, the uncertainty of the CNN layer segmentation can be displayed to guide the user's attentions to images or locations where manual correction is needed. Under view, it can be selected to show segmentation uncertainty in terms of probability and entropy. The uncertainty will be displayed as a color coded table at the bottom of the viewer and also the line representing the layer segmentation gets colored. Seperate color maps are used for the entropy (orange/red) and probability (blue). More saturated colors corresponds to higher uncertainty.  In the color coded table at the bottom, the color of the ith cell represents the uncertainty in the ith B-scan.
 
-For a more detailed instruction, please refer to: link to pdf
+More detailed information can be found in our publication (see below). The paper PDF will soon be available in the Eurographics Digital Library https://diglib.eg.org/ It is also available via email from the authors, and will be posted on the authors' website upon official publication.
 
+Reference
+----------
+
+If you use our software as part of a scientific project, please cite the corresponding publication
+
+* Shekoufeh Gorgi Zadeh, Maximilian W.M. Wintergerst, Thomas Schultz: Uncertainty-Guided Semi-Automated Editing of CNN-based Retinal Layer Segmentations in Optical Coherence Tomography. In: Proc. EG Workshop on Visual Computing in Biology and Medicine (VCBM), pp. 107-115, Eurographics, 2018.
+  
 Authors
 ----------
 
