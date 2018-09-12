@@ -48,7 +48,7 @@ Reference
 
 If you use our software as part of a scientific project, please cite the corresponding publication
 
-* Shekoufeh Gorgi Zadeh, Maximilian W.M. Wintergerst, Thomas Schultz: Uncertainty-Guided Semi-Automated Editing of CNN-based Retinal Layer Segmentations in Optical Coherence Tomography. In: Proc. EG Workshop on Visual Computing in Biology and Medicine (VCBM), pp. 107-115, Eurographics, 2018.
+* Shekoufeh Gorgi Zadeh, Maximilian W.M. Wintergerst, Thomas Schultz: Uncertainty-Guided Semi-Automated Editing of CNN-based Retinal Layer Segmentations in Optical Coherence Tomography. In: Proc. EG Workshop on Visual Computing for Biology and Medicine (VCBM), pp. 107-115, Eurographics, 2018.
   
 Authors
 ----------
