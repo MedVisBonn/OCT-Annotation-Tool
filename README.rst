@@ -41,7 +41,7 @@ There are different tools available to manually modifiy the layer segmentation d
 
 Additionally, the uncertainty of the CNN layer segmentation can be displayed to guide the user's attentions to images or locations where manual correction is needed. Under view, it can be selected to show segmentation uncertainty in terms of probability and entropy. The uncertainty will be displayed as a color coded table at the bottom of the viewer and also the line representing the layer segmentation gets colored. Seperate color maps are used for the entropy (orange/red) and probability (blue). More saturated colors corresponds to higher uncertainty.  In the color coded table at the bottom, the color of the ith cell represents the uncertainty in the ith B-scan.
 
-More detailed information can be found in our publication (see below). The paper PDF will soon be available in the Eurographics Digital Library https://diglib.eg.org/ It is also available via email from the authors, and will be posted on the authors' website upon official publication.
+More detailed information can be found in our publication (see below). The paper PDF is available from the authors' website http://cg.cs.uni-bonn.de/aigaion2root/attachments/gorgizadeh-guided-editing-2018.pdf and in the Eurographics Digital Library http://dx.doi.org/10.2312/vcbm.20181235
 
 Reference
 ----------
