@@ -74,7 +74,10 @@ class MyQLabel(QtGui.QLabel):
         self.cm2 = LinearSegmentedColormap.from_list(cmap_name2, colors2, N=200)
         self.name=name
         self.activeMap=None
-    
+        
+    def get_color_maps(self):
+        return self.colorsEntropy,self.colorsProbability
+        
     def set_max(self,m):
         self.max=m
     
@@ -544,7 +547,7 @@ class Ui_imageEditor(object):
         self.labelImage2.set_active_map(mapName)
         self.labelImage.update()
         self.labelImage2.update()
-    
+        self.controller.update_layer_viewer('layerViewer')
     def set_uncertainty_value(self,uncertainties,sliceNumZ):
         if(uncertainties[0] is None):
             return
@@ -579,7 +582,7 @@ class Ui_imageEditor(object):
             self.probVals[sliceNum-1]=perfectNum
             self.labelImage.set_color_to_perfect_in_slice(sliceNum,perfectNum)
             self.labelImage2.set_color_to_perfect_in_slice(sliceNum,perfectNum)
-            self.graphicsViewImageViewer.slice_edited(sliceNum,layerName)
+#            self.graphicsViewImageViewer.slice_edited(sliceNum,layerName)
 
     def triggerUncertaintyMap(self,mapNameP,mapNameE):
         if(self.name=='layerViewer'):
@@ -608,3 +611,5 @@ class Ui_imageEditor(object):
     def get_uncertainties(self):
         return self.uncertaintyValues,self.entropyVals,self.probVals
 
+    def get_color_maps(self):
+        return self.labelImage.get_color_maps()

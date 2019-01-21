@@ -117,6 +117,35 @@ class DrawCostPointCommand(QtGui.QUndoCommand):
         self.info=self.parentWind.draw_cost_point_command_undo_redo(self.x,\
                 self.y,self.smoothness,self.layerName,self.viewName,self.info,\
                 self.sliceNum,'redo')
+
+class DrawSplineCommand(QtGui.QUndoCommand):
+    
+    def __init__(self,parent,layer,knots,layerName,sliceNum):
+        QtGui.QUndoCommand.__init__(self)
+        super(DrawSplineCommand,self).__init__()
+        self.layerName=layerName
+        self.sliceNum=sliceNum
+        self.viewName='layerViewer'
+        self.parentWind=parent
+        self.info=None
+        self.prevLayer=layer
+        self.prevKnots=knots
+        self.redoLayer=None
+        self.redoKnots=None
+    
+    def set_redo_values(self,layer,knots):
+        self.redoLayer=layer
+        self.redoKnots=knots
+    def undo(self):
+        self.parentWind.draw_spline_command_undo_redo(self.prevLayer,\
+                self.prevKnots,self.redoLayer,self.redoKnots,self.layerName,\
+                self.viewName,self.info,self.sliceNum,'undo')
+        
+    def redo(self):
+        self.parentWind.oct_controller.set_slice_number(self.sliceNum,self.viewName)
+        self.info=self.parentWind.draw_spline_command_undo_redo(self.prevLayer,\
+                self.prevKnots,self.redoLayer,self.redoKnots,self.layerName,\
+                self.viewName,self.info,self.sliceNum,'redo')
         
 class ApplySplitCommand(QtGui.QUndoCommand):
     
@@ -133,7 +162,6 @@ class ApplySplitCommand(QtGui.QUndoCommand):
     def redo(self):
         self.info=self.parentWind.apply_split_command_undo_redo(self.info,'redo')
                 
-        
 class DrawPolyFitCommand(QtGui.QUndoCommand):
     
     def __init__(self,parent,image,topLeftX,topLeftY,\
@@ -162,7 +190,32 @@ class DrawPolyFitCommand(QtGui.QUndoCommand):
         self.info=self.parentWind.draw_poly_fit_command_undo_redo(self.image,\
                 self.topLeftX,self.topLeftY,self.bottomRightX,self.bottomRightY,\
                 self.polyDegree,self.layerName,self.viewName,self.info,self.sliceNum,'redo')
+ 
+class AcceptSuggestedSegmentationCommand(QtGui.QUndoCommand):
+    
+    def __init__(self,parent,sliceNumZ,layerName,smoothness,uncType,extent,csps):
+        QtGui.QUndoCommand.__init__(self)
+        super(AcceptSuggestedSegmentationCommand,self).__init__()
+        self.layerName=layerName
+        self.sliceNumZ=sliceNumZ
+        self.parentWind=parent
+        self.smoothness=smoothness
+        self.uncType=uncType
+        self.extent=extent
+        self.csps=csps
+        self.info=None
         
+    def undo(self):
+        self.parentWind.accept_suggest_seg_command_undo_redo(self.layerName,\
+           self.info,self.sliceNumZ,self.smoothness,self.uncType,self.extent,\
+           self.csps,'undo')
+        
+    def redo(self):
+        self.parentWind.oct_controller.set_slice_number(self.sliceNumZ,'layerViewer')
+        self.info=self.parentWind.accept_suggest_seg_command_undo_redo(\
+           self.layerName,self.info,self.sliceNumZ,self.smoothness,self.uncType,\
+           self.extent,self.csps,'redo')
+                
 class DrawPenCommand(QtGui.QUndoCommand):
     
     def __init__(self,parent,x,y,color,viewName,sliceNum,prevValues=[],slices=1,\
@@ -492,7 +545,7 @@ class DrawExtractCommand(QtGui.QUndoCommand):
 
 class DrawRegionCommand(QtGui.QUndoCommand):
     
-    def __init__(self,parent,xs,ys,color,viewName,sliceNum):
+    def __init__(self,parent,xs,ys,color,viewName,sliceNum,gaType):
         QtGui.QUndoCommand.__init__(self)
         super(DrawRegionCommand,self).__init__()
         self.xs=xs
@@ -501,7 +554,7 @@ class DrawRegionCommand(QtGui.QUndoCommand):
         self.viewName=viewName
         self.sliceNum=sliceNum
         self.parentWind=parent
-
+        self.gaType=gaType
     def undo(self):
         c=np.copy(self.color)
         if(self.color[0]==0):
@@ -513,11 +566,11 @@ class DrawRegionCommand(QtGui.QUndoCommand):
             c[1]=0
             c[2]=0
         self.parentWind.draw_region_command_undo_redo(self.xs,self.ys,c,\
-            self.viewName,self.sliceNum)
+            self.viewName,self.sliceNum,self.gaType)
         
     def redo(self):
         self.parentWind.draw_region_command_undo_redo(self.xs,self.ys,\
-            self.color,self.viewName,self.sliceNum)
+            self.color,self.viewName,self.sliceNum,self.gaType)
         
 class DrawBoxCommand(QtGui.QUndoCommand):
     
@@ -901,6 +954,8 @@ class Ui_MainWindow(object):
         self.settingWidnowUI=settings.Ui_settings()
         self.settingWidnowUI.setupUi(self.settingWindow,self.oct_controller)
         self.settingWindow.hide()
+        
+        self.lastSplineCommand=None
     
     def enable_probability_related_tools(self):
         self.uncertaintyMapMenu.setEnabled(True)
@@ -909,17 +964,19 @@ class Ui_MainWindow(object):
     def disable_probability_related_tools(self):
         self.uncertaintyMapMenu.setEnabled(False) 
         self.subwindowToolBoxUI.disable_probability_related_tools()
-    def set_uncertainties_per_bscan(self,ent,prob):
+    def set_uncertainties_per_bscan(self,ent,prob,entCol,probCol):
         if(not self.subwindowLayerViewerUI is None):
             self.subwindowLayerViewerUI.graphicsViewImageViewer.\
-                set_uncertainties(ent,prob)
-            
+                set_uncertainties(ent,prob,entCol,probCol)
+        if(not self.subwindowEnfaceViewerUI is None):
+            self.subwindowEnfaceViewerUI.graphicsViewImageViewer.\
+                set_uncertainties(ent,prob,entCol,probCol)    
     def show_uncertainty_color_map_ent_prob(self):
         if(not self.subwindowLayerViewerUI is None):
             self.oct_controller.write_in_log(self.oct_controller.get_time()+\
                 ','+self.action_ShowUncertaintyColorMapEntProb.objectName()+'\n')
             self.subwindowLayerViewerUI.triggerUncertaintyMap('probability','entropy')
-    
+            self.oct_controller.update_layer_viewer('layerViewer')
     def change_druse_visiting_order_size(self):
         self.action_ChangeDruseVisitingOrderHeight.setChecked(False)
         self.action_ChangeDruseVisitingOrderBrightness.setChecked(False)
@@ -974,8 +1031,29 @@ class Ui_MainWindow(object):
                 self.subwindowToolBoxUI.hrf_editing_selected()
             elif(windowName=='gaViewer'):
                 # Set editing 
-                self.subwindowToolBoxUI.ga_editing_selected()
-      
+                if(self.oct_controller.get_edit_ga()):
+                    self.subwindowToolBoxUI.ga_editing_selected()
+                elif(self.oct_controller.get_edit_nga()):
+                    self.subwindowToolBoxUI.nga_editing_selected()
+                else:
+                    self.subwindowToolBoxUI.ga_editing_selected()
+    
+    def accept_suggest_seg_command_undo_redo(self,layerName,\
+                    info,sliceNumZ,smoothness,uncType,extent,csps,actionMode):
+        if(self.subwindowLayerViewerUI is not None):
+                if(actionMode=='redo'):
+                    infoL=self.oct_controller.accept_suggest_seg_command_redo(\
+                        layerName,sliceNumZ,'layerViewer',smoothness,uncType,extent,csps)
+                    self.oct_controller.set_slice_edited(sliceNumZ+1,layerName,True)
+                    self.oct_controller.slice_value_changed(sliceNumZ+1,\
+                        'layerViewer',furtherUpdate=False)
+                    return infoL
+                elif(actionMode=='undo'):
+                    self.oct_controller.accept_suggest_seg_command_undo(layerName,sliceNumZ,info,\
+                        'layerViewer',smoothness,uncType,extent,csps)   
+                    self.oct_controller.slice_value_changed(sliceNumZ+1,\
+                        'layerViewer',furtherUpdate=False)
+                        
     def draw_poly_fit_command_undo_redo(self,image,topLeftX,topLeftY,bottomRightX,\
                 bottomRightY,polyDegree,layerName,viewName,info,sliceNum,actionMode):
 
@@ -985,20 +1063,43 @@ class Ui_MainWindow(object):
                     infoL=self.oct_controller.poly_fit_redo(image,topLeftX,\
                         topLeftY,bottomRightX,bottomRightY,polyDegree,\
                         layerName,sliceNum,viewName)
-                    self.slice_edited(sliceNum,viewName,layerName)
+                    self.oct_controller.set_slice_edited(sliceNum,layerName,True)
                     self.oct_controller.slice_value_changed(sliceNum,\
                         'layerViewer',furtherUpdate=False)
                     return infoL
                 elif(actionMode=='undo'):
                     self.oct_controller.poly_fit_undo(layerName,sliceNum,info,\
                         viewName)   
-                    
+                    self.oct_controller.slice_value_changed(sliceNum,\
+                        'layerViewer',furtherUpdate=False)
+                        
+    def draw_spline_command_undo_redo(self,prevLayer,prevKnots,redoLayer,redoKnots,layerName,\
+                viewName,info,sliceNum,actionMode):
+        if( viewName=='layerViewer'):
+            if(self.subwindowLayerViewerUI is not None):
+                if(actionMode=='redo'):
+                    infoL=self.oct_controller.update_layer_spline_redo(redoLayer,redoKnots,layerName,sliceNum)
+                    self.oct_controller.set_slice_edited(sliceNum,layerName,True)
+                    self.oct_controller.slice_value_changed(sliceNum,\
+                        'layerViewer',furtherUpdate=False)
+                    return infoL
+                elif(actionMode=='undo'):
+                    self.oct_controller.update_layer_spline_undo(prevLayer,prevKnots,info)   
+                    self.oct_controller.slice_value_changed(sliceNum,\
+                        'layerViewer',furtherUpdate=False)
+                
     def apply_split_command_undo_redo(self,info,actionMode):
         if(actionMode=='redo'):   
              infoL=self.oct_controller.apply_split_redo()
              return infoL
         elif(actionMode=='undo'):
              self.oct_controller.apply_split_undo(info)
+    
+    def get_smoothness(self):
+        if(not self.subwindowLayerViewerUI is None):
+            return self.subwindowLayerViewerUI.graphicsViewImageViewer.get_smoothness()
+        else:
+            return 1
             
     def draw_cost_point_command_undo_redo(self,x,y,smoothness,layerName,\
             viewName,info,sliceNum,actionMode):
@@ -1008,14 +1109,16 @@ class Ui_MainWindow(object):
                 if(actionMode=='redo'):
                     infoL=self.oct_controller.update_cost_image_redo(x,y,\
                         smoothness,layerName,sliceNum,viewName)
-                    self.slice_edited(sliceNum,viewName,layerName)
+                    self.oct_controller.set_slice_edited(sliceNum,layerName,True)
                     self.oct_controller.slice_value_changed(sliceNum,\
-                        'layerViewer',furtherUpdate=False)
+                        'layerViewer',furtherUpdate=False)   
                     return infoL
                 elif(actionMode=='undo'):
                     self.oct_controller.update_cost_image_undo(layerName,\
                         sliceNum,info,viewName)
-                    
+                    self.oct_controller.slice_value_changed(sliceNum,\
+                        'layerViewer',furtherUpdate=False)   
+                        
     def draw_pen_command_undo_redo(self,x,y,color,viewName,prevValues=[],\
             slices=[],posY=[],sliceNum=1,mode='undo',info=None,layerName=''):
         if(viewName=='drusenViewer' ):
@@ -1032,12 +1135,15 @@ class Ui_MainWindow(object):
                 
                 if(mode=='undo'):
                     self.oct_controller.pen_or_line_undo(sliceNum,info,layerName)
+                    self.oct_controller.slice_value_changed(sliceNum,'layerViewer',\
+                        furtherUpdate=False)
                 elif(mode=='redo'):
                     info=self.oct_controller.pen_or_line_redo(sliceNum,layerName)
-                    self.slice_edited(sliceNum,viewName,layerName)
+                    self.oct_controller.set_slice_edited(sliceNum,layerName,True)
                     self.oct_controller.slice_value_changed(sliceNum,'layerViewer',\
                         furtherUpdate=False)
                     return info
+                
         if(viewName=='hrfViewer' ):
             if(self.subwindowHRFViewerUI is not None):
                 self.oct_controller.oct.insert_hrf_at_slice(sliceNum,[y],[x],color[0])
@@ -1087,10 +1193,13 @@ class Ui_MainWindow(object):
                 
                 if(mode=='undo'):
                     self.oct_controller.pen_or_line_undo(sliceNum,info,layerName)
+                    self.oct_controller.slice_value_changed(sliceNum,'layerViewer',\
+                        furtherUpdate=False)
                 elif(mode=='redo'):
                     info=self.oct_controller.pen_or_line_redo(sliceNum,layerName)
-                    self.slice_edited(sliceNum,viewName,layerName)
-                   
+                    self.oct_controller.set_slice_edited(sliceNum,layerName,True)
+                    self.oct_controller.slice_value_changed(sliceNum,'layerViewer',\
+                        furtherUpdate=False)
                     return info
                     
         if(viewName=='enfaceDrusenViewer'):
@@ -1116,10 +1225,13 @@ class Ui_MainWindow(object):
                     furtherUpdate=False)
                 if(mode=='undo'):
                     self.oct_controller.pen_or_line_undo(sliceNum,info,layerName)
+                    self.oct_controller.slice_value_changed(sliceNum,'layerViewer',\
+                        furtherUpdate=False)
                 elif(mode=='redo'):
                     info=self.oct_controller.pen_or_line_redo(sliceNum,layerName)
-                    self.slice_edited(sliceNum,viewName,layerName)
-                   
+                    self.oct_controller.set_slice_edited(sliceNum,layerName,True)
+                    self.oct_controller.slice_value_changed(sliceNum,'layerViewer',\
+                        furtherUpdate=False)
                     return info
         if(viewName=='drusenViewer'):
             if(self.subwindowDrusenViewerUI is not None):
@@ -1308,10 +1420,13 @@ class Ui_MainWindow(object):
                     self.oct_controller.slice_value_changed(sliceNum,\
                         'drusenViewer',furtherUpdate=False) 
                     
-    def draw_region_command_undo_redo(self,xs,ys,color,viewName,sliceNum=1):
+    def draw_region_command_undo_redo(self,xs,ys,color,viewName,sliceNum=1,gaType='GA'):
         if(viewName=='gaViewer'):
             if(self.subwindowGAViewerUI is not None):
-                self.oct_controller.oct.insert_ga_at_slice(sliceNum,xs,ys,color[0])
+                if(gaType=='GA'):
+                    self.oct_controller.oct.insert_ga_at_slice(sliceNum,xs,ys,color[0])
+                elif(gaType=='NGA'):
+                    self.oct_controller.oct.insert_nga_at_slice(sliceNum,xs,ys,color[0])
                 self.oct_controller.slice_value_changed(sliceNum,'gaViewer',\
                     furtherUpdate=False)
         
@@ -1326,7 +1441,13 @@ class Ui_MainWindow(object):
             if(self.subwindowEnfaceViewerUI is not None):
                 self.subwindowEnfaceViewerUI.graphicsViewImageViewer.\
                     delete_box(rect,sliceNum)
-              
+         if(viewName=='gaViewer'):
+            if(self.subwindowGAViewerUI is not None):
+                self.subwindowGAViewerUI.graphicsViewImageViewer.\
+                    delete_box(rect,sliceNum)
+                self.oct_controller.slice_value_changed(sliceNum,\
+                    'gaViewer',furtherUpdate=False)
+                    
     def draw_box_command_redo(self,rect,sliceNum,viewName):
         if(viewName=='hrfViewer'):
             if(self.subwindowHRFViewerUI is not None):
@@ -1338,6 +1459,12 @@ class Ui_MainWindow(object):
             if(self.subwindowEnfaceViewerUI is not None):
                 self.subwindowEnfaceViewerUI.graphicsViewImageViewer.\
                     add_box(rect,sliceNum)
+        if(viewName=='gaViewer'):
+            if(self.subwindowGAViewerUI is not None):
+                self.subwindowGAViewerUI.graphicsViewImageViewer.\
+                    add_box(rect,sliceNum)  
+                self.oct_controller.slice_value_changed(sliceNum,\
+                    'gaViewer',furtherUpdate=False)
                 
     def remove_box_command_undo(self,rects,sliceNum,viewName):
         if(viewName=='hrfViewer'):
@@ -1350,7 +1477,13 @@ class Ui_MainWindow(object):
             if(self.subwindowEnfaceViewerUI is not None):
                 self.subwindowEnfaceViewerUI.graphicsViewImageViewer.\
                     add_boxes(rects,sliceNum)
-                
+        if(viewName=='gaViewer'):
+            if(self.subwindowGAViewerUI is not None):
+                self.subwindowGAViewerUI.graphicsViewImageViewer.\
+                    add_boxes(rects,sliceNum)      
+                self.oct_controller.slice_value_changed(sliceNum,\
+                    'gaViewer',furtherUpdate=False)
+                    
     def remove_box_command_redo(self,rects,sliceNum,viewName):
          if(viewName=='hrfViewer'):
             if(self.subwindowHRFViewerUI is not None):
@@ -1362,7 +1495,13 @@ class Ui_MainWindow(object):
             if(self.subwindowEnfaceViewerUI is not None):
                 self.subwindowEnfaceViewerUI.graphicsViewImageViewer.\
                     delete_boxes(rects,sliceNum)
-                
+         if(viewName=='gaViewer'):
+            if(self.subwindowGAViewerUI is not None):
+                self.subwindowGAViewerUI.graphicsViewImageViewer.\
+                    delete_boxes(rects,sliceNum)       
+                self.oct_controller.slice_value_changed(sliceNum,'gaViewer',\
+                    furtherUpdate=False)
+                    
     def draw_pen_command(self,x,y,color,callerName,sliceNum=1,prevValues=[],\
             slices=1,posY=0,oldValue=[],redoValues=[],layerName=''):
         command=DrawPenCommand(self,x,y,color,callerName,sliceNum,prevValues,\
@@ -1381,23 +1520,40 @@ class Ui_MainWindow(object):
              bottomRightX,bottomRightY,sliceNum,polyDegree,currLayer,callerName)
         self.undoStack.push(command)
         self.actionUndo.setEnabled(True) 
-       
+   
+    def accept_suggested_segmentation_command(self,sliceNumZ,layerName,\
+            smoothness,uncType,extent,csps):
+        command=AcceptSuggestedSegmentationCommand(self,sliceNumZ,layerName,\
+                    smoothness,uncType,extent,csps)
+        self.undoStack.push(command)
+        self.actionUndo.setEnabled(True) 
+   
+    def draw_spline_layer_command(self,layer,knots,currLayer,currSlice):
+        command=DrawSplineCommand(self,layer,knots,currLayer,currSlice)
+        self.lastSplineCommand=command
+        self.undoStack.push(command)
+        self.actionUndo.setEnabled(True) 
+    
+    def draw_spline_layer_update_command(self,layer,knots):
+        if(not self.lastSplineCommand is None):
+            self.lastSplineCommand.set_redo_values(layer,knots)
+    
     def apply_split_command(self):
         command=ApplySplitCommand(self)
         self.undoStack.push(command)
         self.actionUndo.setEnabled(True)  
         
     def draw_line_command(self,x1,y1,x2,y2,color,callerName,sliceNum=1,posX=[],\
-            posY=[],slices=[],prevValues=[],redoValues=[]):
+            posY=[],slices=[],prevValues=[],redoValues=[],layerName=''):
         command=DrawLineCommand(self,x1,y1,x2,y2,color,callerName,sliceNum,posX,\
-            slices,posY,prevValues,redoValues)
+            slices,posY,prevValues,redoValues,layerName)
         self.undoStack.push(command)
         self.actionUndo.setEnabled(True)
     
     def draw_curve_command(self,x,y,s,color,callerName,sliceNum=1,prevValues=[],\
-            redoValues=[]):
+            redoValues=[],layerName=''):
         command=DrawCurveCommand(self,s,y,x,color,callerName,sliceNum,\
-            prevValues,redoValues)
+            prevValues,redoValues,layerName)
         self.undoStack.push(command)
         self.actionUndo.setEnabled(True)
     
@@ -1431,8 +1587,8 @@ class Ui_MainWindow(object):
         self.undoStack.push(command)
         self.actionUndo.setEnabled(True)
 
-    def draw_region_command(self,xs,ys,color,callerName,sliceNum):
-        command=DrawRegionCommand(self,xs,ys,color,callerName,sliceNum)
+    def draw_region_command(self,xs,ys,color,callerName,sliceNum,gaType):
+        command=DrawRegionCommand(self,xs,ys,color,callerName,sliceNum,gaType)
         self.undoStack.push(command)
         self.actionUndo.setEnabled(True)
      
@@ -1452,6 +1608,8 @@ class Ui_MainWindow(object):
             
     def set_uncertainties(self,uncertainties,sliceNumZ):
         self.subwindowLayerViewerUI.set_uncertainty_value(uncertainties,sliceNumZ)
+        if(not self.subwindowEnfaceViewerUI is None):
+            self.subwindowEnfaceViewerUI.set_uncertainty_value(uncertainties,sliceNumZ)
         
     def action_undo(self):     
         self.oct_controller.write_in_log(self.oct_controller.get_time()+','+\
@@ -1633,7 +1791,6 @@ class Ui_MainWindow(object):
         self.actionShowHRF.setToolTip(_translate("MainWindow",\
             "Show Hyperreflective Foci", None))
         
-        
         self.actionShow3D.setText(_translate("MainWindow", "show3D", None))
         self.actionShow3D.setToolTip(_translate("MainWindow",\
             "Show PED volume", None))
@@ -1641,8 +1798,6 @@ class Ui_MainWindow(object):
             "measureDrusen", None))
         self.actionMeasureDrusen.setToolTip(_translate("MainWindow",\
             "Measure Drusen", None))
-    
-
     
     def show_toolbox(self):
         if(self.subwindowToolBoxUI is None):
@@ -1790,6 +1945,9 @@ class Ui_MainWindow(object):
         if(self.subwindowEnfaceViewerUI is not None):
             self.subwindowEnfaceViewerUI.graphicsViewImageViewer.\
                 set_bounding_box()
+        if(self.subwindowGAViewerUI is not None):
+            self.subwindowGAViewerUI.graphicsViewImageViewer.\
+                set_bounding_box()
         self.activeBBox=True
         
     def set_cost_point(self,value):
@@ -1853,6 +2011,8 @@ class Ui_MainWindow(object):
         self.filterTMax=value
 
     def set_grab_position(self,position,callerName=''):  
+        if(self.subwindowLayerViewerUI is not None):
+            self.subwindowLayerViewerUI.grab_value_changed(position)
         if(self.subwindowDrusenViewerUI is not None):
             self.subwindowDrusenViewerUI.grab_value_changed(position)
         if(self.subwindowEnfaceDrusenViewerUI is not None):
@@ -1966,47 +2126,54 @@ class Ui_MainWindow(object):
                 add_overlay_image(overlayImages[0])# Scan
             self.subwindowDrusenViewerUI.graphicsViewImageViewer.\
                 add_overlay_image(overlayImages[1])# Layer
+        elif(viewerName=='enfaceViewer'):
+            self.subwindowEnfaceViewerUI.graphicsViewImageViewer.\
+                add_overlay_image(overlayImages[0],coeff)
         elif(viewerName=='enfaceDrusenViewer'):
             self.subwindowEnfaceDrusenViewerUI.graphicsViewImageViewer.\
                 add_overlay_image(overlayImages[0],coeff)
 
     def update_viewer(self,images,coeffs,viewerName,sliceNumber):
         if(viewerName=='scanViewer'):
-            self.subwindowScanViewerUI.graphicsViewImageViewer.update_main_image(images[0])
             self.subwindowScanViewerUI.graphicsViewImageViewer.update_slice_number(sliceNumber)
+            self.subwindowScanViewerUI.graphicsViewImageViewer.update_main_image(images[0])
         elif(viewerName=='layerViewer'):
+            self.subwindowLayerViewerUI.graphicsViewImageViewer.update_slice_number(sliceNumber)
             self.subwindowLayerViewerUI.graphicsViewImageViewer.set_coeffs(coeffs[::-1])
+            self.subwindowLayerViewerUI.graphicsViewImageViewer.update_suggestion_layers(images[2])
             self.subwindowLayerViewerUI.graphicsViewImageViewer.update_main_image(images[1])
             self.subwindowLayerViewerUI.graphicsViewImageViewer.update_overlay_image(images[0],1)
-            self.subwindowLayerViewerUI.graphicsViewImageViewer.update_slice_number(sliceNumber)
         elif(viewerName=='hrfViewer'):
+            self.subwindowHRFViewerUI.graphicsViewImageViewer.update_slice_number(sliceNumber)
             self.subwindowHRFViewerUI.graphicsViewImageViewer.set_coeffs(coeffs[::-1])
             self.subwindowHRFViewerUI.graphicsViewImageViewer.update_main_image(images[1])
             self.subwindowHRFViewerUI.graphicsViewImageViewer.update_overlay_image(images[0],1)
-            self.subwindowHRFViewerUI.graphicsViewImageViewer.update_slice_number(sliceNumber)
         elif(viewerName=='gaViewer'):
+            self.subwindowGAViewerUI.graphicsViewImageViewer.update_slice_number(sliceNumber)
             self.subwindowGAViewerUI.graphicsViewImageViewer.set_coeffs(coeffs[::-1])
             self.subwindowGAViewerUI.graphicsViewImageViewer.update_main_image(images[1])
             self.subwindowGAViewerUI.graphicsViewImageViewer.update_overlay_image(images[0],1)
-            self.subwindowGAViewerUI.graphicsViewImageViewer.update_slice_number(sliceNumber)
         elif(viewerName=='drusenViewer'):
+            self.subwindowDrusenViewerUI.graphicsViewImageViewer.update_slice_number(sliceNumber)
             self.subwindowDrusenViewerUI.graphicsViewImageViewer.update_line(sliceNumber-1)
             self.subwindowDrusenViewerUI.graphicsViewImageViewer.set_coeffs(coeffs[::-1])
             self.subwindowDrusenViewerUI.graphicsViewImageViewer.update_main_image(images[2])
             self.subwindowDrusenViewerUI.graphicsViewImageViewer.update_overlay_image(images[0],2)
             self.subwindowDrusenViewerUI.graphicsViewImageViewer.update_overlay_image(images[1],1)
-            self.subwindowDrusenViewerUI.graphicsViewImageViewer.update_slice_number(sliceNumber)
             self.subwindowDrusenViewerUI.graphicsViewImageViewer.set_drusen_separators(self.get_drusen_separators())
         elif(viewerName=='enfaceViewer' and self.subwindowEnfaceViewerUI is not None):
-            self.subwindowEnfaceViewerUI.graphicsViewImageViewer.update_line(sliceNumber-1)
-            self.subwindowEnfaceViewerUI.graphicsViewImageViewer.update_main_image(images[0])
             self.subwindowEnfaceViewerUI.graphicsViewImageViewer.update_slice_number(sliceNumber)
+            self.subwindowEnfaceViewerUI.graphicsViewImageViewer.update_line(sliceNumber-1)
+            self.subwindowEnfaceViewerUI.graphicsViewImageViewer.set_coeffs(coeffs[::-1])
+            self.subwindowEnfaceViewerUI.graphicsViewImageViewer.update_main_image(images[0])
+            self.subwindowEnfaceViewerUI.graphicsViewImageViewer.update_overlay_image(images[1],1)
         elif(viewerName=='enfaceDrusenViewer' and self.subwindowEnfaceDrusenViewerUI is not None):
+            self.subwindowEnfaceDrusenViewerUI.graphicsViewImageViewer.update_slice_number(sliceNumber)
             self.subwindowEnfaceDrusenViewerUI.graphicsViewImageViewer.update_line(sliceNumber-1)
             self.subwindowEnfaceDrusenViewerUI.graphicsViewImageViewer.set_coeffs(coeffs[::-1])
             self.subwindowEnfaceDrusenViewerUI.graphicsViewImageViewer.update_main_image(images[1])
             self.subwindowEnfaceDrusenViewerUI.graphicsViewImageViewer.update_overlay_image(images[0],1)
-            self.subwindowEnfaceDrusenViewerUI.graphicsViewImageViewer.update_slice_number(sliceNumber)
+            
             
     def show_scan(self,image,numSlices):          
         self.show_viewer(image,'scanViewer',numSlices)
@@ -2014,6 +2181,11 @@ class Ui_MainWindow(object):
     def get_hrf_bounding_boxes(self):
         if(self.subwindowHRFViewerUI is not None):
             return self.subwindowHRFViewerUI.graphicsViewImageViewer.get_hrf_bounding_boxes()
+        return None
+    
+    def get_nga_bounding_boxes(self):
+        if(self.subwindowGAViewerUI is not None):
+            return self.subwindowGAViewerUI.graphicsViewImageViewer.get_nga_bounding_boxes()
         return None
     
     def get_enface_bounding_boxes(self):
@@ -2030,6 +2202,9 @@ class Ui_MainWindow(object):
     def set_hrf_bbox(self,hrfBBox):
         self.subwindowHRFViewerUI.graphicsViewImageViewer.set_HRF_BBox(hrfBBox)   
     
+    def set_nga_bbox(self,ngaBBox):
+        self.subwindowGAViewerUI.graphicsViewImageViewer.set_nga_BBox(ngaBBox)   
+        
     def set_enface_bbox(self,hrfBBox):
         self.subwindowEnfaceViewerUI.graphicsViewImageViewer.set_enface_BBox(hrfBBox)   
     
@@ -2091,7 +2266,6 @@ class Ui_MainWindow(object):
 #==============================================================================
 #   Action Functions
 #==============================================================================
-
     def close_current_scan(self):
         choice=QtGui.QMessageBox.question(self.mainWindow,\
             "Close Scan","Save the changes before closing?",\
@@ -2159,7 +2333,13 @@ class Ui_MainWindow(object):
                 self.subwindowHRFViewer.show()
                 self.actionShowHRF.setChecked(True)
                 self.actionShowHRF.setEnabled(False)
-    
+                
+    def set_edited_layers(self,editedLayers):
+        if(not self.subwindowLayerViewerUI is None):
+            self.subwindowLayerViewerUI.graphicsViewImageViewer.set_edited_layers(editedLayers)
+        if(not self.subwindowEnfaceViewerUI is None):
+            self.subwindowEnfaceViewerUI.graphicsViewImageViewer.set_edited_layers(editedLayers)
+            
     def find_GA_action(self):
         self.show_toolbox()
         if(self.subwindowGAViewerUI is None):
@@ -2321,7 +2501,6 @@ class Ui_MainWindow(object):
         self.uiDrusenInfoTable.set_data(cx,cy,area,height,volume,largeR,smallR,theta)
         self.uiDrusenInfoTable.enable_export()
         self.subwindowDrusenInfoViewer.show()
-       
       
     def show_image(self, image, block = True ):
         plt.imshow( image, cmap = plt.get_cmap('gray'))
@@ -2486,4 +2665,12 @@ class Ui_MainWindow(object):
             return self.subwindowToolBoxUI.get_current_active_window()
         return 'None'
 
+    def curve_to_spline(self):
+        if(not self.subwindowLayerViewerUI is None):
+            return self.subwindowLayerViewerUI.graphicsViewImageViewer.\
+                curve_to_spline()
 
+    def spline_to_curve(self):
+        if(not self.subwindowLayerViewerUI is None):
+            return self.subwindowLayerViewerUI.graphicsViewImageViewer.\
+                spline_to_curve()

@@ -64,7 +64,16 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         self.showUncertainties=False
         self.entropyValsPerBcan=None
         self.probabilityValsPerBcan=None
+        self.entropyColor=None
+        self.probabilityColor=None
         self.uncertaintyType='None'
+        
+        self.editedLayers=list()
+        self.redrawLayers=False
+        
+        self.showSplineKnots=False
+        self.hasPickedKnot=False
+        self.pickedKnot=None
         
         self.controller=controller
         self.x, self.y = -1, -1      
@@ -73,8 +82,9 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         self.etype=editorType
         self.mainPhoto=np.empty((10,10))
         self.overlayedPhotos=[self.mainPhoto]
-        self.coeffs=[1.0]        
+        self.suggestionLayerImg=None
         
+        self.coeffs=[1.0]        
         self.radius = 10
         self.width=10
         self.height=10
@@ -129,25 +139,19 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         self.mergeDrusenMode=False
         self.sourceLabel=-1
      
+        self.clickType=1 # 1: left click, 2: right click
         colors1 = [(255/255.,0/255.,0/255.),(227/255.,128/255.,0/255.),\
                     (212/255.,162/255.,40/255.),(219/255.,173/255.,110/255.),\
                     (209/255.,198/255.,179/255.)]
         colors2 = [(0/255.,72/255.,255/255.),(30/255.,113/255.,250/255.),\
                     (116/255.,182/255.,207/255.),(183/255.,208/255.,225/255.),\
                     (207/255.,221/255.,231/255.)]
+                    
         cmap_name1 = 'oranges'
         cmap_name2 = 'blues'
         self.cm1 = LinearSegmentedColormap.from_list(cmap_name1, colors1, N=200)
         self.cm2 = LinearSegmentedColormap.from_list(cmap_name2, colors2, N=200)
         
-        self.editedLayers=list()
-        for i in range(145):
-            e=dict()
-            e['RPE']=False
-            e['BM']=False
-            self.editedLayers.append(e)
-        
-        self.redrawLayers=False
         
     def unset_all(self):
         self.selectRect=False 
@@ -164,7 +168,7 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         self.markDrusenPeak=False
         self.showSeparators=False
         self.mergeDrusenMode=False
-    
+        
     def set_uncertainty_type(self,utype):
         self.uncertaintyType=utype
         self.update()
@@ -237,6 +241,12 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         for s in self.bboxList.keys():
             self.bBoxCount+=len(self.bboxList[s])
      
+    def set_nga_BBox(self,ngaBBox):
+        self.bboxList=ngaBBox
+        self.bBoxCount=0
+        for s in self.bboxList.keys():
+            self.bBoxCount+=len(self.bboxList[s])
+            
     def set_enface_BBox(self,hrfBBox):
         self.bboxList=hrfBBox
         self.bBoxCount=0
@@ -256,6 +266,18 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
     def set_separation_threshold(self,value):
         self.separatorHeightThreshold=value
         self.combine_images()
+
+    def curve_to_spline(self):
+        self.unset_all()
+        self.showSplineKnots=True
+        self.selectRect=True
+        self.combine_images()
+    
+    def spline_to_curve(self):
+        self.unset_all()
+        self.showSplineKnots=False
+        self.combine_images()        
+    
     def get_manual_markers(self):
         return self.drusenPeaks
         
@@ -295,6 +317,9 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
     def smoothness_value_changed(self,value):
         self.smoothness=value
         
+    def get_smoothness(self):
+        return self.smoothness
+        
     def max_threshold_value_changed(self,value):
         self.maxFilteringHeight=value
     
@@ -303,13 +328,9 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         self.grabPosition=position
         self.update()
         
-    def slice_edited(self,sliceNum,layerName):    
-        if(layerName=='RPE'):
-            self.editedLayers[sliceNum-1]['RPE']=True
-        elif(layerName=='BM'):
-            self.editedLayers[sliceNum-1]['BM']=True
-        self.update()
-        
+    def set_edited_layers(self,editedLayers):
+        self.editedLayers=editedLayers
+    
     def get_cursor_status(self):
         if(self.mergeDrusenMode and self.etype=='enfaceDrusenViewer'):
             return 'showHand'
@@ -367,6 +388,8 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
             self.controller.update_HRF_status(self.sliceNum-1,self.box_exists(),True)
         elif(self.etype=='enfaceViewer'):
             self.controller.update_enface_status()
+        elif(self.etype=='gaViewer'):
+            self.controller.update_ga_status()
         self.update()
         
     def add_box(self,rect,sliceNum):
@@ -389,6 +412,8 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
             self.controller.update_HRF_status(self.sliceNum-1,self.box_exists(),True)
         elif(self.etype=='enfaceViewer'):
             self.controller.update_enface_status()
+        elif(self.etype=='gaViewer'):
+            self.controller.update_ga_status()
         self.update()
         
     def delete_boxes(self,rects,sliceNum):
@@ -403,6 +428,8 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
                     i=i+1  
         if(self.etype=='hrfViewer'):
             self.controller.update_HRF_status(self.sliceNum-1,self.box_exists(),True)
+        elif(self.etype=='gaViewer'):
+            self.controller.update_ga_status()
         elif(self.etype=='enfaceViewer'):
             self.controller.update_enface_status()
         self.update()
@@ -428,6 +455,8 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
                 self.bBoxCount+=1
         if(self.etype=='hrfViewer'):
             self.controller.update_HRF_status(self.sliceNum-1,self.box_exists(),True)
+        elif(self.etype=='gaViewer'):
+            self.controller.update_ga_status(self.sliceNum-1,self.box_exists(),True)
         elif(self.etype=='enfaceViewer'):
             self.controller.update_enface_status()
         self.update()
@@ -448,6 +477,7 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         if(self.selectRect):
             self.pen = QtGui.QPen(QtCore.Qt.DashLine)
             self.pen.setColor(QtGui.QColor(127,127,127))
+            
             self.pen.setWidth(0.5)
             painter.setPen(self.pen)
             painter.setBrush(QtCore.Qt.NoBrush)
@@ -461,7 +491,29 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
             painter.drawLine(self.line)
 
         lineOffset=0.5  
-        
+        if(self.etype=='enfaceViewer'):
+            for sliceNum in self.bboxList.keys():
+                rects=self.bboxList[sliceNum]
+                self.pen = QtGui.QPen(QtCore.Qt.SolidLine)
+                self.pen.setColor(QtGui.QColor(0,255,255,170))
+                self.pen.setWidth(0.5)
+                painter.setPen(self.pen)
+                for rect in rects:
+                    painter.drawRect(rect)
+            
+            unc=self.controller.get_enface_uncertainty_overlay()
+            if(not unc is None):
+                layer=unc[0]
+                for i in range(len(self.editedLayers)):
+                    edited=self.editedLayers[i][layer]
+                    if(edited):
+                        self.pen = QtGui.QPen(QtCore.Qt.SolidLine)
+                        self.pen.setColor(QtGui.QColor(255,255,0,200))
+                        self.pen.setWidth(1.0)
+                        painter.setPen(self.pen)
+                        width=self.width
+                        painter.drawLine(QtCore.QLineF(float(width-10),\
+                            float(i)+0.5,float(width-1),float(i)+0.5))
         if(self.drawSliceLine and self.etype!='drusenViewer'):
             self.pen = QtGui.QPen(QtCore.Qt.SolidLine)
             self.pen.setColor(QtGui.QColor(0,255,255,170))
@@ -485,7 +537,7 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
                 lineOffset,sliceLine[1]+lineOffset,sliceLine[2]+lineOffset,\
                 sliceLine[3]+lineOffset))
         
-        if(self.drawSliceLine and self.etype=='drusenViewer'):
+        if(self.drawSliceLine and (self.etype=='drusenViewer' or self.etype=='layerViewer')):
             self.pen = QtGui.QPen(QtCore.Qt.SolidLine)
             self.pen.setColor(QtGui.QColor(0,255,255,170))
             self.pen.setWidth(1.0)
@@ -505,16 +557,16 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
                 for rect in rects:
                     painter.drawRect(rect)
                     
-        if(self.etype=='enfaceViewer'):
-            for sliceNum in self.bboxList.keys():
-                rects=self.bboxList[sliceNum]
+        if(self.etype=='gaViewer'):
+            if(self.sliceNum-1 in self.bboxList.keys()):
+                rects=self.bboxList[self.sliceNum-1]
                 self.pen = QtGui.QPen(QtCore.Qt.SolidLine)
                 self.pen.setColor(QtGui.QColor(0,255,255,170))
                 self.pen.setWidth(0.5)
                 painter.setPen(self.pen)
                 for rect in rects:
-                    painter.drawRect(rect)
-                    
+                    painter.drawRect(rect)               
+               
         if(self.etype=='enfaceDrusenViewer'):
             for p in self.drusenPeaks:
                 self.pen = QtGui.QPen(QtCore.Qt.SolidLine)
@@ -522,6 +574,7 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
                 self.pen.setWidth(1.)
                 painter.setPen(self.pen)
                 painter.drawPoint(QtCore.QPointF(p[0]+0.5,p[1]+0.5))
+                
             if(not self.separators is None):
                 separators=np.copy(self.separators)
                 if(len( np.where(self.separatorAvgHeight>\
@@ -563,65 +616,35 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
                     if(len(sy)>0):
                         minimum=max(0,min(sy)-1)
                         painter.drawPoint(QtCore.QPointF(x+0.5,minimum+0.5))
-                        
-        if(self.showUncertainties and self.etype=='layerViewer'):
-            ent=self.entropyValsPerBcan[self.sliceNum-1]
-            prb=self.probabilityValsPerBcan[self.sliceNum-1]
-            layers=self.mainPhoto
-            
-            rpeEdited=self.editedLayers[self.sliceNum-1]['RPE']
-            bmEdited=self.editedLayers[self.sliceNum-1]['BM']
-            
-            if(self.uncertaintyType=='entropyAndProbability'):
-                pass
-            elif(self.uncertaintyType=='entropy'):
-                colorsRPE=self.map_numbers_to_colors(ent[1],self.cm1)
-                colorsBM=self.map_numbers_to_colors(ent[0],self.cm1)
-            elif(self.uncertaintyType=='probability'):
-                colorsRPE=self.map_numbers_to_colors(prb[1],self.cm2)
-                colorsBM=self.map_numbers_to_colors(prb[0],self.cm2)
-            for j in range(layers.shape[1]):
-                    col=layers[:,j]
-                    yr=np.where(col>170)[0]
-                    a=(col<170).astype(int)
-                    a[col==0]=0
-                    yb=np.where(a>0)[0]
-                    yo=np.where(col==170)[0]
-                    
-                    self.pen = QtGui.QPen(QtCore.Qt.SolidLine)
-                    self.pen.setWidth(1.)
-                    for i in yr:
-                        if(not rpeEdited):
-                            self.pen.setColor(QtGui.QColor(colorsRPE[j][0],\
-                                colorsRPE[j][1],colorsRPE[j][2],255))
-                        else:
-                            self.pen.setColor(QtGui.QColor(255,255,0,255))
-                        painter.setPen(self.pen)
-                        painter.drawPoint(QtCore.QPointF(j+0.5,i+0.5))
-                    for i in yo:
-                        if(not rpeEdited):
-                            self.pen.setColor(QtGui.QColor(colorsRPE[j][0],\
-                                colorsRPE[j][1],colorsRPE[j][2],255))
-                        else:
-                            self.pen.setColor(QtGui.QColor(255,255,0,255))
-                        painter.setPen(self.pen)
-                        painter.drawPoint(QtCore.QPointF(j+0.5,i+0.5))
-                    for i in yb:
-                        if(not bmEdited):
-                            self.pen.setColor(QtGui.QColor(colorsBM[j][0],\
-                                colorsBM[j][1],colorsBM[j][2],255))
-                        else:
-                            self.pen.setColor(QtGui.QColor(255,255,0,255))
-                        painter.setPen(self.pen)
-                        painter.drawPoint(QtCore.QPointF(j+0.5,i+0.5))
             
         if(self.redrawLayers and self.etype=='layerViewer'):
             self.combine_images()
             self.redrawLayers=False
-                        
-    def set_uncertainties(self,unEnt,unProb):
+        
+        if(self.showSplineKnots and self.etype=='layerViewer'):
+            knots=self.controller.get_spline_knots(self.sliceNum-1)          
+        
+            if(knots is None):
+                return
+            lineThikness=1.
+            knotsx,knotsy=knots
+            self.pen = QtGui.QPen(QtCore.Qt.SolidLine)
+            self.pen.setColor(QtGui.QColor(255,0,0,150))
+            self.pen.setWidth(lineThikness)
+            painter.setPen(self.pen)
+                
+            for i in range(len(knotsx)):
+                painter.drawPoint(QtCore.QPointF(knotsx[i]+0.5,knotsy[i]+0.5))
+                painter.drawPoint(QtCore.QPointF(knotsx[i]+0.5,knotsy[i]+0.5+1))
+                painter.drawPoint(QtCore.QPointF(knotsx[i]+0.5,knotsy[i]+0.5-1))
+                painter.drawPoint(QtCore.QPointF(knotsx[i]+0.5+1,knotsy[i]+0.5))
+                painter.drawPoint(QtCore.QPointF(knotsx[i]+0.5-1,knotsy[i]+0.5))
+                
+    def set_uncertainties(self,unEnt,unProb,entCol,probCol):
         self.entropyValsPerBcan=unEnt
         self.probabilityValsPerBcan=unProb
+        self.entropyColor=entCol
+        self.probabilityColor=probCol
         
     def setPaintingColor(self,button): 
         if(button==1):#Left click
@@ -637,10 +660,13 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         self.y=event.pos().y()
         self.controller.write_in_log(self.controller.get_time()+',clicked,'+\
             self.etype+','+self.controller.get_current_active_window()+'\n')
+        self.clickType=event.button()
         if(self.selectRect):
-            self.rectFixPoint.setX(self.x)
-            self.rectFixPoint.setY(self.y)
-        elif(self.selectLine):
+            isRightClick=event.button()==2
+            if((self.showSplineKnots and isRightClick) or (not self.showSplineKnots)):
+                self.rectFixPoint.setX(self.x)
+                self.rectFixPoint.setY(self.y)
+        if(self.selectLine):
             x=int(self.x)+0.5
             y=int(self.y)+0.5
             self.line.setP1(QtCore.QPointF(x,y))
@@ -679,7 +705,20 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
                 self.sourceLabel=self.labels[int(self.y),int(self.x)]
             else: # By click merge the druse with the source
                 self.copy_source_label_to_destination(int(self.y),int(self.x))
-            
+        
+        elif(self.showSplineKnots):
+            isRightClick=event.button()==2
+            if(isRightClick): # Delete knot
+                self.controller.delete_spline_knot(int(self.y),int(self.x),self.sliceNum-1)
+            else:       
+                knotExists=self.controller.is_knot(int(self.y),int(self.x),self.sliceNum-1)
+                if(knotExists):
+                    self.hasPickedKnot=True
+                    kx,ky=self.controller.get_closest_knot(int(self.y),int(self.x),self.sliceNum-1)
+                    self.pickedKnot=[kx,ky]
+                if(modifiers == QtCore.Qt.ControlModifier):
+                    if(not self.hasPickedKnot):
+                        self.controller.add_spline_knot(int(self.y),int(self.x),self.sliceNum-1)
         if(self.updateGrab):
             self.grabPosition=self.x
             self.controller.grap_position_changed(int(self.x),int(self.y),self.etype)
@@ -708,7 +747,9 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         self.y=event.pos().y()  
         
         if(self.selectRect):
-            self.draw_rect_area(event)
+            isRightClick=self.clickType==2
+            if((self.showSplineKnots and isRightClick) or (not self.showSplineKnots)):
+                self.draw_rect_area(event)
         elif(self.selectLine):
             x=int(self.x)+0.5
             y=int(self.y)+0.5
@@ -720,18 +761,28 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         if(self.updateGrab):
             self.grabPosition=self.x
             self.controller.grap_position_changed(self.x,self.y,self.etype)
-    
+        if(self.hasPickedKnot):
+            self.controller.update_knot_position(int(self.y),int(self.x),\
+                        self.pickedKnot[1],self.pickedKnot[0],self.sliceNum-1)
+            del self.pickedKnot
+            self.pickedKnot=[int(self.x),int(self.y)]
+            
     def mouseReleaseEvent(self, event):
         if(self.selectLine):
             self.draw_line(event)
             
         if(self.selectRect):
-            self.apply_function_in_rect(event) 
+            isRightClick=event.button()==2
+            if((self.showSplineKnots and isRightClick) or (not self.showSplineKnots)):
+                self.apply_function_in_rect(event) 
             
         if(self.drawPen):
             color=self.color.getRgb()
             self.controller.finished_drawing_with_pen(color,self.etype)
-           
+        if(self.hasPickedKnot):
+            self.hasPickedKnot=False
+            del self.pickedKnot   
+            
     def draw_rect_area(self,event):
         tl=self.rectFixPoint.x(),self.rectFixPoint.y()
         width=(self.x-tl[0])
@@ -758,6 +809,9 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
             topLeft.setY(math.floor(self.y))
             bottomRight.setX(math.ceil(self.x))
             bottomRight.setY(math.ceil(tl[1]))
+        if(self.etype=='drusenViewer' and self.drawDru):
+            topLeft.setY(0)
+            bottomRight.setY(self.height-1)
         self.rect.setTopLeft(topLeft)
         self.rect.setBottomRight(bottomRight)
         self.update()
@@ -812,7 +866,6 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
                 image=self.controller.dilate_in_region(image,topLeftX,topLeftY,\
                     bottomRightX,bottomRightY,self.itLevel,self.etype)
             elif(self.drawDru):
-               
                 overImg=self.overlayedPhotos[1]
                 image=self.controller.extract_drusen_in_region(image,overImg,\
                     topLeftX,topLeftY,bottomRightX,bottomRightY,self.etype,\
@@ -822,7 +875,7 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
                     self.filteringHeight,self.maxFilteringHeight,topLeftX,\
                     topLeftY,bottomRightX,bottomRightY,self.etype)
             elif(self.drawBBox and (self.etype=='hrfViewer' or\
-                    self.etype=='enfaceViewer')):
+                    self.etype=='enfaceViewer' or self.etype=='gaViewer')):
                 bBox=QtCore.QRect(QtCore.QPoint(topLeftX,topLeftY),\
                     QtCore.QPoint(bottomRightX-1,bottomRightY-1))
                 self.controller.box_command(bBox,self.sliceNum,self.etype)
@@ -842,9 +895,12 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
                 image=self.controller.delete_drusen_in_region(image,topLeftX,\
                     topLeftY,bottomRightX,bottomRightY,self.etype)
             elif(self.drawBBox and (self.etype=='hrfViewer' or\
-                    self.etype=='enfaceViewer')):
+                    self.etype=='enfaceViewer' or self.etype=='gaViewer')):
                 self.remove_bbox(event.pos().x(),event.pos().y(),topLeftX,\
                     topLeftY,bottomRightX,bottomRightY)
+            elif(self.showSplineKnots and self.etype=='layerViewer'):
+                self.controller.delete_spline_knots_in_region(topLeftX,\
+                    topLeftY,bottomRightX,bottomRightY,self.sliceNum-1)
 
         self.set_main_photo(image)
         del self.rect
@@ -860,10 +916,8 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
     def draw_line(self,event):
         prev=self.mainPhoto
         color=self.color.getRgb()
-        
         prev=self.controller.draw_line(prev,int(self.line.x1()),int(self.line.y1()),\
                                 int(self.line.x2()),int(self.line.y2()),color,self.etype)
-        
         self.set_main_photo(prev)
         del self.line
         self.line=QtCore.QLineF()
@@ -920,6 +974,9 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
     def get_hrf_bounding_boxes(self):
         return self.bboxList
 
+    def get_nga_bounding_boxes(self):
+        return self.bboxList
+
     def get_enface_bounding_boxes(self):
         return self.bboxList
 
@@ -940,6 +997,9 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
     def set_overlay_image(self,image,index):
         self.overlayedPhotos[index]=image
         self.combine_images()
+     
+    def update_suggestion_layers(self,image):
+        self.suggestionLayerImg=image
         
     def set_main_photo(self,image):
         self.mainPhoto=image
@@ -980,15 +1040,7 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         return ccaMask
         
     def combine_images(self):
-        if(self.etype=='layerViewer' and self.showUncertainties):
-            photo=self.overlayedPhotos[1]
-            res=np.zeros((photo.shape[0],photo.shape[1],3))
-            res[:,:,0]=photo*self.coeffs[1]+res[:,:,0]*self.coeffs[0]
-            res[:,:,1]=photo*self.coeffs[1]+res[:,:,1]*self.coeffs[0]
-            res[:,:,2]=photo*self.coeffs[1]+res[:,:,2]*self.coeffs[0]
-            qimg=q2np.array2qimage(res)
-            self.setPixmap(QtGui.QPixmap.fromImage(qimg))
-            return
+        lineThikness=1
         mainPhoto=self.overlayedPhotos[0]
         if(mainPhoto is None):
             return
@@ -1003,22 +1055,134 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
             return    
         if(self.etype=='layerViewer'  ):
             res.fill(0)
-            if(self.etype=='layerViewer' and len(self.overlayedPhotos)>1):
+            if(self.showUncertainties):
+                uncType='Entropy' if self.uncertaintyType=='entropy' else 'Probability'
+                photo=self.overlayedPhotos[1]
+                mrpe=np.copy(self.controller.oct.get_uncer_map('RPE',uncType)[self.sliceNum-1,:])
+                mbm=np.copy(self.controller.oct.get_uncer_map('BM',uncType)[self.sliceNum-1,:])
+                
+                rpeEdited=self.editedLayers[self.sliceNum-1]['RPE']
+                bmEdited=self.editedLayers[self.sliceNum-1]['BM']
+                if(rpeEdited):
+                    mrpe[:,0]=255
+                    mrpe[:,1]=255
+                    mrpe[:,2]=0
+                if(bmEdited):
+                    mbm[:,0]=255
+                    mbm[:,1]=255
+                    mbm[:,2]=0
+                y,x=np.where(mainPhoto>170)
+                res[y,x,:]=(np.ones(res.shape)*mrpe[np.newaxis,:])[y,x,:]
+                a=(mainPhoto<170).astype(int)
+                a[mainPhoto==0]=0
+                y,x=np.where(a>0)
+                res[y,x,:]=(np.ones(res.shape)*mbm[np.newaxis,:])[y,x,:]
+                y,x=np.where(mainPhoto==170)
+                res[y,x,:]=(np.ones(res.shape)*mrpe[np.newaxis,:])[y,x,:]
+                
+            else:
+                y,x=np.where(mainPhoto>170)
+                res[y,x,0]=0
+                res[y,x,1]=255
+                res[y,x,2]=255
+                a=(mainPhoto<170).astype(int)
+                a[mainPhoto==0]=0
+                y,x=np.where(a>0)
+                res[y,x,0]=255
+                res[y,x,1]=166
+                res[y,x,2]=0
+                y,x=np.where(mainPhoto==170)
+                res[y,x,0]=255
+                res[y,x,1]=210
+                res[y,x,2]=255
+            showGT=False
+            if(len(self.overlayedPhotos)>1):
                     photo=self.overlayedPhotos[1]
-                    y,x=np.where(mainPhoto>170)
-                    res[y,x,0]=0
-                    res[y,x,1]=255
-                    res[y,x,2]=255
-                    a=(mainPhoto<170).astype(int)
-                    a[mainPhoto==0]=0
-                    y,x=np.where(a>0)
-                    res[y,x,0]=255
-                    res[y,x,1]=166
-                    res[y,x,2]=0
-                    y,x=np.where(mainPhoto==170)
-                    res[y,x,0]=255
-                    res[y,x,1]=210
-                    res[y,x,2]=255
+                    if(showGT):
+                        gtLayer=self.controller.get_GT_layer()
+                        res2=np.empty((self.height,self.width,3))
+                        res2.fill(0.)
+                        res3=np.empty((self.height,self.width,3))
+                        res3.fill(0.)
+                        y,x=np.where(gtLayer>127)
+                        res2[y,x,0]=0
+                        res2[y,x,1]=255
+                        res2[y,x,2]=0
+                        
+                        halfSize=np.floor(lineThikness/2).astype(int)
+                        for i in range(halfSize):
+                            shiftedUp=np.roll(res2,-(i+1),axis=0)
+                            shiftedDown=np.roll(res2,(i+1),axis=0)
+                            shiftedLeft=np.roll(res2,-(i+1),axis=1)
+                            shiftedRight=np.roll(res2,(i+1),axis=1)
+                            res2=np.maximum(res2,shiftedUp)
+                            res2=np.maximum(res2,shiftedDown)
+                            res2=np.maximum(res2,shiftedLeft)
+                            res2=np.maximum(res2,shiftedRight)
+                        
+                        if(not self.suggestionLayerImg is None):
+                            
+                            y,x=np.where(self.suggestionLayerImg>1)
+                            res3[y,x,0]=255
+                            res3[y,x,1]=0
+                            res3[y,x,2]=0
+                            y,x=np.where(self.suggestionLayerImg==1)
+                            res3[y,x,0]=0
+                            res3[y,x,1]=255
+                            res3[y,x,2]=0
+                            halfSize=np.floor(lineThikness/2).astype(int)
+                            for i in range(halfSize):
+                                shiftedUp=np.roll(res3,-(i+1),axis=0)
+                                shiftedDown=np.roll(res3,(i+1),axis=0)
+                                shiftedLeft=np.roll(res3,-(i+1),axis=1)
+                                shiftedRight=np.roll(res3,(i+1),axis=1)
+                                res3=np.maximum(res3,shiftedUp)
+                                res3=np.maximum(res3,shiftedDown)
+                                res3=np.maximum(res3,shiftedLeft)
+                                res3=np.maximum(res3,shiftedRight)
+                        halfSize=np.floor(lineThikness/2).astype(int)
+                        for i in range(halfSize):
+                            shiftedUp=np.roll(res,-(i+1),axis=0)
+                            shiftedDown=np.roll(res,(i+1),axis=0)
+                            shiftedLeft=np.roll(res,-(i+1),axis=1)
+                            shiftedRight=np.roll(res,(i+1),axis=1)
+                            res=np.maximum(res,shiftedUp)
+                            res=np.maximum(res,shiftedDown)
+                            res=np.maximum(res,shiftedLeft)
+                            res=np.maximum(res,shiftedRight)
+                        x,y,z=np.where(res>0)
+                        res2[x,y,0]=res[x,y,0]
+                        res2[x,y,1]=res[x,y,1]
+                        res2[x,y,2]=res[x,y,2]
+                        
+                        x,y,z=np.where(res3>0)
+                        res2[x,y,0]=res3[x,y,0]
+                        res2[x,y,1]=res3[x,y,1]
+                        res2[x,y,2]=res3[x,y,2]
+                        res=res2
+                    else:
+                        if(not self.suggestionLayerImg is None):
+                            res2=np.empty((self.height,self.width,3))
+                            res2.fill(0.)
+                            y,x=np.where(self.suggestionLayerImg>1)
+                            res2[y,x,0]=255
+                            res2[y,x,1]=0
+                            res2[y,x,2]=0
+                            y,x=np.where(self.suggestionLayerImg==1)
+                            res2[y,x,0]=0
+                            res2[y,x,1]=255
+                            res2[y,x,2]=0
+                            res=res+res2
+                        halfSize=np.floor(lineThikness/2).astype(int)
+                        for i in range(halfSize):
+                            shiftedUp=np.roll(res,-(i+1),axis=0)
+                            shiftedDown=np.roll(res,(i+1),axis=0)
+                            shiftedLeft=np.roll(res,-(i+1),axis=1)
+                            shiftedRight=np.roll(res,(i+1),axis=1)
+                            res=np.maximum(res,shiftedUp)
+                            res=np.maximum(res,shiftedDown)
+                            res=np.maximum(res,shiftedLeft)
+                            res=np.maximum(res,shiftedRight)
                     res[:,:,0]=photo*self.coeffs[1]+res[:,:,0]*self.coeffs[0]
                     res[:,:,1]=photo*self.coeffs[1]+res[:,:,1]*self.coeffs[0]
                     res[:,:,2]=photo*self.coeffs[1]+res[:,:,2]*self.coeffs[0]
@@ -1049,18 +1213,25 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
             res.fill(0)
             if(self.etype=='gaViewer' and len(self.overlayedPhotos)>1):
                     photo=self.overlayedPhotos[1]
-                    y,x=np.where(mainPhoto>0)
+                    y,x=np.where(mainPhoto==1.)
                     res[y,x,0]=255
-                    res[y,x,1]=0
-                    res[y,x,2]=0
-                    
+                    res[y,x,1]=117
+                    res[y,x,2]=128
+                    y,x=np.where(mainPhoto==2.)
+                    res[y,x,0]=117
+                    res[y,x,1]=213
+                    res[y,x,2]=255
+                    y,x=np.where(mainPhoto==3.)
+                    res[y,x,0]=229
+                    res[y,x,1]=135
+                    res[y,x,2]=255
                     res[:,:,0]=photo*self.coeffs[1]+res[:,:,0]*self.coeffs[0]
                     res[:,:,1]=photo*self.coeffs[1]+res[:,:,1]*self.coeffs[0]
                     res[:,:,2]=photo*self.coeffs[1]+res[:,:,2]*self.coeffs[0]
-           
             qimg=q2np.array2qimage(res)
             self.setPixmap(QtGui.QPixmap.fromImage(qimg))
             return   
+            
         if(self.etype=='drusenViewer'):
             res.fill(0)
             
@@ -1082,8 +1253,6 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
                     res[y,x,2]=255
                     
                     photoS=self.overlayedPhotos[2]
-                    
-                    
                     if(self.ccaMask is None):
                         res[:,:,0]=photoS*self.coeffs[2]+mainPhoto*\
                             self.coeffs[0]+res[:,:,0]*self.coeffs[1]
@@ -1144,6 +1313,20 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
             qimg=q2np.array2qimage(res)
             self.setPixmap(QtGui.QPixmap.fromImage(qimg))
             return
+        if(self.etype=='enfaceViewer'):
+            res.fill(0)
+            res[:,:,0]=mainPhoto
+            res[:,:,1]=mainPhoto
+            res[:,:,2]=mainPhoto
+            if(len(self.overlayedPhotos)>1 and not self.overlayedPhotos[1] is None):
+                    photo=self.overlayedPhotos[1]
+                    res[:,:,0]=res[:,:,0]*self.coeffs[0]+photo[:,:,0]*self.coeffs[1]
+                    res[:,:,1]=res[:,:,1]*self.coeffs[0]+photo[:,:,1]*self.coeffs[1]
+                    res[:,:,2]=res[:,:,2]*self.coeffs[0]+photo[:,:,2]*self.coeffs[1]
+               
+            qimg=q2np.array2qimage(res)
+            self.setPixmap(QtGui.QPixmap.fromImage(qimg))
+            return
         res[:,:,0]=mainPhoto
         res[:,:,1]=mainPhoto
         res[:,:,2]=mainPhoto
@@ -1156,6 +1339,7 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
                 res[:,:,i]=res[:,:,i]+photo*self.coeffs[i]
         qimg=q2np.array2qimage(res)
         self.setPixmap(QtGui.QPixmap.fromImage(qimg))
+        
     def show_image(self, image, block = True ):
         plt.imshow( image)
         plt.show(block)    
@@ -1216,7 +1400,7 @@ class ImageEditor(QtGui.QWidget):
 
     def update_overlay_image(self,image,index):
         self.imagePanel.set_overlay_image(image,index)
-        
+    
     def set_coeffs(self,coeffs):
         self.imagePanel.set_coeffs(coeffs)
     
@@ -1282,12 +1466,18 @@ class ImageEditor(QtGui.QWidget):
         
     def get_hrf_bounding_boxes(self):
         return self.imagePanel.get_hrf_bounding_boxes()
+        
+    def get_nga_bounding_boxes(self):
+        return self.imagePanel.get_nga_bounding_boxes()
 
     def get_enface_bounding_boxes(self):
         return self.imagePanel.get_enface_bounding_boxes()
 
     def set_HRF_BBox(self,hrfBBox):
         self.imagePanel.set_HRF_BBox(hrfBBox)
+
+    def set_nga_BBox(self,ngaBBox):
+        self.imagePanel.set_nga_BBox(ngaBBox)
 
     def set_enface_BBox(self,enfaceBBox):
         self.imagePanel.set_enface_BBox(enfaceBBox)
@@ -1343,7 +1533,6 @@ class ImageEditor(QtGui.QWidget):
         if(self.mainPhoto is None):
             return
         h,w=self.mainPhoto.shape
-        
         self.view.fitInView(QtCore.QRectF(0, 0, h,w), QtCore.Qt.KeepAspectRatio)
         rect=QtCore.QRectF(0,0,h,w)
         if not rect.isNull():
@@ -1369,12 +1558,23 @@ class ImageEditor(QtGui.QWidget):
     def show_uncertainties(self,status):
         self.imagePanel.show_uncertainties(status)
         
-    def slice_edited(self,sliceNum,layerName):   
-        self.imagePanel.slice_edited(sliceNum,layerName)
     
-    def set_uncertainties(self,unEnt,unProb):
-        self.imagePanel.set_uncertainties(unEnt,unProb)
+    def set_uncertainties(self,unEnt,unProb,colEnt=None,colProb=None):
+        self.imagePanel.set_uncertainties(unEnt,unProb,colEnt,colProb)
     
     def set_uncertainty_type(self,utype):
         self.imagePanel.set_uncertainty_type(utype)
 
+    def spline_to_curve(self):
+        self.imagePanel.spline_to_curve()
+    
+    def curve_to_spline(self):
+        self.imagePanel.curve_to_spline()
+    def get_smoothness(self):
+        return self.imagePanel.get_smoothness()
+    def update_suggestion_layers(self,img):
+        self.imagePanel.update_suggestion_layers(img)
+        
+    def set_edited_layers(self,editedLayers):
+        self.imagePanel.set_edited_layers(editedLayers)
+    
