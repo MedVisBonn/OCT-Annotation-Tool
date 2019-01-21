@@ -35,9 +35,17 @@ There are different tools available to manually modifiy the layer segmentation d
 
 2) **Line Marker**: Mark every pixel along a line segment as belonging to the selected layer
 
-3) **Constrained Shortest Path Tool (CSP)**: Select a single point through which the new shortest path is enforced to run
+3) **Spline fit**: Fit a B-spline to the selected layer. User can drag, add and delete Spline knots
 
-4) **Local Smoothing Tool (LS)**: Select a layer and a horizontal interval on the image that is replaced by a smoothed version by fitting a low-degre polynomial to the pixel positions
+4) **Constrained Shortest Path Tool (CSP)**: Select a single point through which the new shortest path is enforced to run
+
+5) **Local Smoothing Tool (LS)**: Select a layer and a horizontal interval on the image that is replaced by a smoothed version by fitting a low-degre polynomial to the pixel positions
+
+6) **Layer Suggestion With Respect to Adjacent B-scans**: For RPE layer, uses the information of CSP tool used in the adjacent B-scan to suggest a new RPE layer. User can accept or ignore it. For BM layer, a 2D spline fit over the BM surface is used to provide suggestion for segmentation
+
+7) **Fill**: Mark every pixel up to RPE layer in a closed region as drusen.
+
+8) **Semi-automated Drusen Extraction (SDE)**: In a selected region by user, automatically extract the lower boundary of drusen and mark every pixel within the lower boundary up to RPE layer as drusen.
 
 Additionally, the uncertainty of the CNN layer segmentation can be displayed to guide the user's attentions to images or locations where manual correction is needed. Under view, it can be selected to show segmentation uncertainty in terms of probability and entropy. The uncertainty will be displayed as a color coded table at the bottom of the viewer and also the line representing the layer segmentation gets colored. Seperate color maps are used for the entropy (orange/red) and probability (blue). More saturated colors corresponds to higher uncertainty.  In the color coded table at the bottom, the color of the ith cell represents the uncertainty in the ith B-scan.
 
