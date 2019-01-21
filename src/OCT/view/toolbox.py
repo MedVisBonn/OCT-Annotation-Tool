@@ -36,7 +36,10 @@ class Ui_toolBox(object):
     
     def __init__(self,controller=None):
         self.controller=controller
-        
+        self.rpeRange=0
+        self.bmRange=0
+        self.rpeSuggShow=True
+        self.bmSuggShow=True
     def setupUi(self, toolBox,undoAction,redoAction):
         toolBox.setObjectName(_fromUtf8("toolBox"))
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.MinimumExpanding,\
@@ -51,6 +54,7 @@ class Ui_toolBox(object):
         self.verticalLayout_7.setObjectName(_fromUtf8("verticalLayout_7"))
         self.groupBox_edit = QtGui.QGroupBox(toolBox)
         self.groupBox_edit.setObjectName(_fromUtf8("groupBox_edit"))
+        
         self.gridLayout = QtGui.QGridLayout(self.groupBox_edit)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
         self.radioButtonRPE = QtGui.QRadioButton(self.groupBox_edit)
@@ -71,6 +75,10 @@ class Ui_toolBox(object):
         self.radioButtonGA = QtGui.QRadioButton(self.groupBox_edit)
         self.radioButtonGA.setObjectName(_fromUtf8("radioButtonGA"))
         self.gridLayout.addWidget(self.radioButtonGA, 2, 1, 1, 1)
+        self.radioButtonNGA = QtGui.QRadioButton(self.groupBox_edit)
+        self.radioButtonNGA.setObjectName(_fromUtf8("radioButtonNGA"))
+        self.gridLayout.addWidget(self.radioButtonNGA, 3, 1, 1, 1)
+        
         self.verticalLayout_7.addWidget(self.groupBox_edit)
         spacerItem = QtGui.QSpacerItem(20, 4, QtGui.QSizePolicy.Minimum,\
             QtGui.QSizePolicy.Fixed)
@@ -79,6 +87,7 @@ class Ui_toolBox(object):
         self.groupBox_opacity.setObjectName(_fromUtf8("groupBox_opacity"))
         self.verticalLayout_5 = QtGui.QVBoxLayout(self.groupBox_opacity)
         self.verticalLayout_5.setObjectName(_fromUtf8("verticalLayout_5"))
+        
         self.horizontalLayout_2 = QtGui.QHBoxLayout()
         self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
         self.verticalLayout_3 = QtGui.QVBoxLayout()
@@ -132,6 +141,21 @@ class Ui_toolBox(object):
         self.horizontalSliderEnface.setObjectName(\
             _fromUtf8("horizontalSliderEnface"))
         self.verticalLayout_2.addWidget(self.horizontalSliderEnface)
+        self.horizontalLayout_50 = QtGui.QHBoxLayout()
+        self.horizontalLayout_50.setObjectName(_fromUtf8("horizontalLayout_50"))
+        
+        self.label_40 = QtGui.QLabel(self.groupBox_opacity)
+        self.label_40.setObjectName(_fromUtf8("label_40"))
+        self.horizontalLayout_50.addWidget(self.label_40)
+        
+        self.comboUncertainty = QtGui.QComboBox(self.groupBox_opacity)
+        self.comboUncertainty.setObjectName(_fromUtf8("comboUncertainty"))
+        self.comboUncertainty.setProperty("value", 0)
+        self.horizontalLayout_50.addWidget(self.comboUncertainty)
+        self.comboUncertainty.addItems(["None","RPE - Uncertainty P",\
+              "RPE - Uncertainty E","BM - Uncertainty P","BM - Uncertainty E"])
+        self.comboUncertainty.setCurrentIndex(0)
+        
         self.horizontalSliderEnfaceDrusen = QtGui.QSlider(self.groupBox_opacity)
         self.horizontalSliderEnfaceDrusen.setProperty("value", 99)
         self.horizontalSliderEnfaceDrusen.setOrientation(QtCore.Qt.Horizontal)
@@ -140,14 +164,66 @@ class Ui_toolBox(object):
         self.verticalLayout_2.addWidget(self.horizontalSliderEnfaceDrusen)
         self.horizontalLayout.addLayout(self.verticalLayout_2)
         self.verticalLayout_5.addLayout(self.horizontalLayout)
+        self.verticalLayout_5.addLayout(self.horizontalLayout_50)
         self.verticalLayout_7.addWidget(self.groupBox_opacity)
         spacerItem1 = QtGui.QSpacerItem(20, 4, QtGui.QSizePolicy.Minimum,\
             QtGui.QSizePolicy.Fixed)
         self.verticalLayout_7.addItem(spacerItem1)
+        
         self.groupBox_toolBox = QtGui.QGroupBox(toolBox)
         self.groupBox_toolBox.setObjectName(_fromUtf8("groupBox_toolBox"))
+        
+        self.verticalLayout_gbox = QtGui.QVBoxLayout(self.groupBox_toolBox)
+        self.verticalLayout_gbox.setObjectName(_fromUtf8("verticalLayout_gbox"))
+        
         self.gridLayout_2 = QtGui.QGridLayout(self.groupBox_toolBox)
         self.gridLayout_2.setObjectName(_fromUtf8("gridLayout_2"))
+        
+        self.verticalLayout_gbox.addLayout(self.gridLayout_2)
+        
+        self.horizontalLayout_suggest = QtGui.QHBoxLayout()
+        self.horizontalLayout_suggest.setObjectName(_fromUtf8("horizontalLayout_suggest"))
+        
+        # Add label, spinbox, 2buttons
+        self.label_suggest_seg = QtGui.QLabel(self.groupBox_edit)
+        self.label_suggest_seg.setObjectName(_fromUtf8("label_suggest_seg"))
+        self.horizontalLayout_suggest.addWidget(self.label_suggest_seg)
+        
+        self.spinBox_suggest_seg = QtGui.QSpinBox(self.groupBox_toolBox)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,\
+            QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.spinBox_suggest_seg.sizePolicy().\
+            hasHeightForWidth())
+        self.spinBox_suggest_seg.setSizePolicy(sizePolicy)
+        self.spinBox_suggest_seg.setMinimumSize(QtCore.QSize(20, 27))
+        self.spinBox_suggest_seg.setMaximum(30)
+        self.spinBox_suggest_seg.setMinimum(0)
+        self.spinBox_suggest_seg.setProperty("value", 0)
+        self.spinBox_suggest_seg.setObjectName(_fromUtf8("spinBox_suggest_seg"))
+        self.horizontalLayout_suggest.addWidget(self.spinBox_suggest_seg)
+        
+        self.toolButtonSuggestSegAcc = QtGui.QToolButton(self.groupBox_toolBox)
+        self.toolButtonSuggestSegAcc.setMinimumSize(QtCore.QSize(34, 34))
+        iconSugges = QtGui.QIcon()
+        iconSugges.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
+            "icons","icons","check2.png"))),\
+            QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.toolButtonSuggestSegAcc.setIcon(iconSugges)
+        self.toolButtonSuggestSegAcc.setObjectName(_fromUtf8("toolButtonSuggestSegAcc"))
+        self.horizontalLayout_suggest.addWidget(self.toolButtonSuggestSegAcc)
+        
+        self.toolButtonSuggestSegShow = QtGui.QToolButton(self.groupBox_toolBox)
+        self.toolButtonSuggestSegShow.setMinimumSize(QtCore.QSize(34, 34))
+        iconRej = QtGui.QIcon()
+        iconRej.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
+            "icons","icons","eye.png"))),\
+            QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.toolButtonSuggestSegShow.setIcon(iconRej)
+        self.toolButtonSuggestSegShow.setObjectName(_fromUtf8("toolButtonSuggestSegShow"))
+        self.horizontalLayout_suggest.addWidget(self.toolButtonSuggestSegShow)        
+        self.verticalLayout_gbox.addLayout(self.horizontalLayout_suggest)
         self.toolButtonPen = QtGui.QToolButton(self.groupBox_toolBox)
         self.toolButtonPen.setMinimumSize(QtCore.QSize(34, 34))
         icon5 = QtGui.QIcon()
@@ -319,7 +395,16 @@ class Ui_toolBox(object):
         self.toolButtonSplitDrusen.setIcon(icon30)
         self.toolButtonSplitDrusen.setObjectName(_fromUtf8("toolButtonSplitDrusen"))
         self.gridLayout_2.addWidget(self.toolButtonSplitDrusen, 3, 0, 1, 1)
-        
+        self.toolButtonSpline = QtGui.QToolButton(self.groupBox_toolBox)
+        self.toolButtonSpline.setMinimumSize(QtCore.QSize(34, 34))
+        self.toolButtonSpline.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
+        icon31 = QtGui.QIcon()
+        icon31.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
+            "icons","icons","splines.png"))),\
+            QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.toolButtonSpline.setIcon(icon31)
+        self.toolButtonSpline.setObjectName(_fromUtf8("toolButtonSpline"))
+        self.gridLayout_2.addWidget(self.toolButtonSpline, 3, 1, 1, 1)
         self.verticalLayout_6 = QtGui.QVBoxLayout(self.toolBox)
         self.verticalLayout_6.setObjectName(_fromUtf8("verticalLayout_6"))
         spacerItem2 = QtGui.QSpacerItem(20, 10, QtGui.QSizePolicy.Minimum,\
@@ -595,6 +680,7 @@ class Ui_toolBox(object):
         self.toolButtonBBox.setCheckable(True)
         self.toolButtonCostPnt.setCheckable(True)
         self.toolButtonPolyFit.setCheckable(True)
+        self.toolButtonSpline.setCheckable(True)
         self.toolButtonSplitDrusen.setCheckable(True)
         self.toolButtonMerge.setCheckable(True)
         self.toolButtonCCA.setCheckable(True)
@@ -602,6 +688,7 @@ class Ui_toolBox(object):
         self.toolButtonCCAClicked=False
         self.toolButtonMergeClicked=False
         self.toolButtonSplitDrusenClicked=False
+        self.toolButtonSplineClicked=False
         
         self.sizingToolsEnabled=False
         self.lastClickedButton=None
@@ -629,6 +716,7 @@ class Ui_toolBox(object):
         self.toolButtonBBox.clicked.connect(self.bounding_box_action)
         self.toolButtonCostPnt.clicked.connect(self.cost_point_action)
         self.toolButtonPolyFit.clicked.connect(self.poly_fit_action)
+        self.toolButtonSpline.clicked.connect(self.spline_action)
         self.toolButtonNextComp.clicked.connect(self.next_component_action)
         self.toolButtonPrevComp.clicked.connect(self.prev_component_action)
         self.toolButtonFilterDruImm.clicked.connect(\
@@ -637,6 +725,9 @@ class Ui_toolBox(object):
         self.toolButtonRunWatershed.clicked.connect(self.run_watershed)
         self.toolButtonMerge.clicked.connect(self.merge_drusen)
         self.toolButtonApplySplit.clicked.connect(self.apply_split)
+        self.toolButtonSuggestSegAcc.clicked.connect(self.accept_suggested_segmentation)
+        self.toolButtonSuggestSegShow.clicked.connect(self.show_suggested_segmentation)
+        
         self.radioButtonUseMaximaAsMarker.clicked.connect(\
             self.drusen_splitting_maxima_as_marker_selected)
         self.radioButtonManualMarker.clicked.connect(\
@@ -651,6 +742,9 @@ class Ui_toolBox(object):
         self.horizontalSliderSeparationThreshold.valueChanged.connect(\
             self.separation_slider_value_changed)
         
+        self.comboUncertainty.currentIndexChanged.connect(\
+            self.combo_uncertainty_value_changed)       
+        
         self.horizontalSlider_size1.valueChanged.connect(\
             self.slider_1_value_changed)
         self.horizontalSlider_size2.valueChanged.connect(\
@@ -661,13 +755,16 @@ class Ui_toolBox(object):
             self.spinbox_neighborhood_size_changed)
         self.spinBoxSeparationThreshold.valueChanged.connect(\
             self.spinbox_separation_threshold_changed)
-        
+        self.spinBox_suggest_seg.valueChanged.connect(\
+            self.spinbox_suggest_segmentation_value_changed)
+            
         self.radioButtonRPE.clicked.connect(self.rpe_editing_selected)
         self.radioButtonBM.clicked.connect(self.bm_editing_selected)
         self.radioButtonDrusen.clicked.connect(self.drusen_editing_selected)
         self.radioButtonEnface.clicked.connect(self.enface_editing_selected)
         self.radioButtonHRF.clicked.connect(self.hrf_editing_selected)
         self.radioButtonGA.clicked.connect(self.ga_editing_selected)
+        self.radioButtonNGA.clicked.connect(self.nga_editing_selected)
         
         self.disable_all()
         self.enable_layer_editing_tools()
@@ -679,6 +776,8 @@ class Ui_toolBox(object):
         self.layer_slider_value_changed()
         self.enface_slider_value_changed()
         
+        self.toolButtonSuggestSegShow.setCheckable(True)        
+        self.toolButtonSuggestSegShow.setChecked(True)
         if(self.druseSplittingMethod=='localMax'):
             self.radioButtonUseMaximaAsMarker.setChecked(True)
         elif(self.druseSplittingMethod=='manual'):
@@ -693,13 +792,16 @@ class Ui_toolBox(object):
         self.radioButtonHRF.setText(_translate("toolBox", "HRF", None))
         self.radioButtonDrusen.setText(_translate("toolBox", "Drusen", None))
         self.radioButtonGA.setText(_translate("toolBox", "GA", None))
+        self.radioButtonNGA.setText(_translate("toolBox", "nGA", None))
         
-        self.groupBox_opacity.setTitle(_translate("toolBox", "Opacity", None))
+        self.groupBox_opacity.setTitle(_translate("toolBox", "Overlay", None))
         self.label.setText(_translate("toolBox", "B-Scan", None))
         self.label_2.setText(_translate("toolBox", "Layer map", None))
         self.label_3.setText(_translate("toolBox", "Drusen map", None))
-        self.label_4.setText(_translate("toolBox", "Enface", None))
+        self.label_4.setText(_translate("toolBox", "Opacity", None))
+        self.label_40.setText(_translate("toolBox", "Project", None))
         self.label_5.setText(_translate("toolBox", "Enface drusen", None))
+        self.label_suggest_seg.setText(_translate("toolBox", "Range:", None))
         self.groupBox_toolBox.setTitle(_translate("toolBox", "Toolbox", None))
         self.toolButtonPen.setText(_translate("toolBox", "...", None))
         self.toolButtonLine.setText(_translate("toolBox", "...", None))
@@ -711,6 +813,7 @@ class Ui_toolBox(object):
         self.toolButtonBBox.setText(_translate("toolBox", "...", None))
         self.toolButtonCostPnt.setText(_translate("toolBox", "...", None))
         self.toolButtonPolyFit.setText(_translate("toolBox", "...", None))
+        self.toolButtonSpline.setText(_translate("toolBox","...",None))
         self.toolButtonCheckComp.setText(_translate("toolBox", "...", None))
         self.toolButtonMorphology.setText(_translate("toolBox", "...", None))
         self.toolButtonDrawDru.setText(_translate("toolBox", "...", None))
@@ -763,6 +866,8 @@ class Ui_toolBox(object):
             " shortest path to run through the selected point.")
         self.toolButtonPolyFit.setToolTip("Polynomial Fitting Tool: Fit a "+\
             "polynomial to layers. ")
+        self.toolButtonSpline.setToolTip("Spline Tool: Fit a B-spline to curve."+\
+            " Add knot: ctrl+click, Delete knot: right-click.")
         self.toolButtonSplitDrusen.setToolTip("Druse Splitting Tool: Split "+\
             "the druse into smaller ones.")
         self.toolButtonCheckComp.setToolTip("Check Druse: Check druse "+\
@@ -788,6 +893,12 @@ class Ui_toolBox(object):
         self.toolButtonGrab.setToolTip("Select Tool: Select a druse for "+\
             "editing in the enface drusen editor.\nSelect corresponding "+\
             "locations between drusen map and enface drusen editors.")
+
+        self.toolButtonSuggestSegAcc.setToolTip("Accept suggested layer: "+\
+            "Replace old layer segmentation with the suggested one. Range is the"+\
+            "size of neighborhood for which layer suggestion exist.")
+        self.toolButtonSuggestSegShow.setToolTip("Show/hide suggested layer"+\
+            " segmentation.")
 
     def check_component_action(self):
         if(self.toolButtonCCA.isChecked()):
@@ -840,6 +951,10 @@ class Ui_toolBox(object):
             self.controller.apply_splitting_threshold()
 
     def pen_action(self):
+        if(self.toolButtonSpline.isChecked()):
+            self.spline_to_curve()
+            self.toolButtonSplineClicked=False
+            self.toolButtonSpline.setChecked(False)
         if(self.sizingToolsEnabled):
             self.disable_size_tools()
         if(self.lastClickedButton is not None and self.lastClickedButton is\
@@ -853,6 +968,10 @@ class Ui_toolBox(object):
         self.controller.activate_pen()
         
     def line_action(self):
+        if(self.toolButtonSpline.isChecked()):
+            self.spline_to_curve()
+            self.toolButtonSplineClicked=False
+            self.toolButtonSpline.setChecked(False)
         if(self.sizingToolsEnabled):
             self.disable_size_tools()
         if(self.lastClickedButton is not None and self.lastClickedButton is\
@@ -968,6 +1087,10 @@ class Ui_toolBox(object):
         self.controller.activate_bounding_box()
         
     def cost_point_action(self):
+        if(self.toolButtonSpline.isChecked()):
+            self.spline_to_curve()
+            self.toolButtonSplineClicked=False
+            self.toolButtonSpline.setChecked(False)
         if(self.sizingToolsEnabled):
             self.disable_size_tools()
         if(self.lastClickedButton is not None and self.lastClickedButton is\
@@ -982,6 +1105,10 @@ class Ui_toolBox(object):
         self.controller.activate_cost_point(self.smoothnessValue)
         
     def poly_fit_action(self):
+        if(self.toolButtonSpline.isChecked()):
+            self.spline_to_curve()
+            self.toolButtonSplineClicked=False
+            self.toolButtonSpline.setChecked(False)
         if(self.sizingToolsEnabled):
             self.disable_size_tools()
         if(self.lastClickedButton is not None and self.lastClickedButton is\
@@ -995,10 +1122,38 @@ class Ui_toolBox(object):
             self.get_current_active_window()+'\n')
         self.controller.activate_poly_fit(self.polyFitDegreeValue)
         
+    def spline_action(self):
+        if(self.sizingToolsEnabled):
+            self.disable_size_tools()
+        if(self.lastClickedButton is not None and self.lastClickedButton is\
+                not self.toolButtonSpline):
+            self.lastClickedButton.setChecked(False)
+        self.toolButtonSplineClicked=True if not\
+            self.toolButtonSplineClicked else False
+        self.toolButtonSpline.setChecked(self.toolButtonSplineClicked)
+        if(self.toolButtonSplineClicked):
+            self.curve_to_spline()
+        else:
+            self.spline_to_curve()
+        
+        self.lastClickedButton=self.toolButtonSpline
+        self.controller.write_in_log(self.controller.get_time()+','+\
+            self.toolButtonSpline.objectName()+','+\
+            self.get_current_active_window()+'\n')
+    def curve_to_spline(self):
+        self.controller.curve_to_spline()
+        
+            
+    def spline_to_curve(self):
+        self.controller.spline_to_curve()        
+        
     def run_watershed(self):
         self.toolButtonMerge.setChecked(False)
         self.controller.run_watershed()
-        
+        self.controller.write_in_log(self.controller.get_time()+','+\
+            self.toolButtonRunWatershed.objectName()+','+\
+            self.get_current_active_window()+'\n')
+            
     def merge_drusen(self):
         self.toolButtonMergeClicked=True if not self.toolButtonMergeClicked else False
         self.toolButtonMerge.setChecked(self.toolButtonMergeClicked)
@@ -1111,6 +1266,8 @@ class Ui_toolBox(object):
         self.toolButtonBBox.setDisabled(True)
         self.toolButtonCostPnt.setDisabled(True)
         self.toolButtonPolyFit.setDisabled(True)
+        self.toolButtonSpline.setDisabled(True)
+        self.comboUncertainty.setDisabled(True)
         
         self.hide_druse_split_tools()
         self.hide_druse_info()
@@ -1120,12 +1277,15 @@ class Ui_toolBox(object):
         self.label_3.hide()
         self.label_4.hide()
         self.label_5.hide()
+        self.label_40.hide()
+        self.label_suggest_seg.hide()
         
         self.horizontalSliderBscan.hide()
         self.horizontalSliderLayerMap.hide()
         self.horizontalSliderDrusenMap.hide()
         self.horizontalSliderEnface.hide()
         self.horizontalSliderEnfaceDrusen.hide()
+        self.comboUncertainty.hide() 
         
         self.label_size1.hide()
         self.label_7.hide()
@@ -1136,13 +1296,17 @@ class Ui_toolBox(object):
         self.spinBox_size1.hide()
         self.horizontalSlider_size2.hide()
         self.spinBox_size2.hide()
+        self.spinBox_suggest_seg.hide()
 
         self.toolButtonFilterDruImm.hide()
+        self.toolButtonSuggestSegAcc.hide()
+        self.toolButtonSuggestSegShow.hide()
         
     def enable_layer_editing_tools(self):
 
         self.toolButtonPen.setDisabled(False)
         self.toolButtonLine.setDisabled(False)
+        self.toolButtonSpline.setDisabled(False)
         if(self.enable_probability_related_tools):
             self.toolButtonCostPnt.setDisabled(False)
             self.toolButtonPolyFit.setDisabled(False)
@@ -1150,10 +1314,25 @@ class Ui_toolBox(object):
         self.label.show()   
         self.horizontalSliderBscan.show()
         
-        self.toolBox.setMinimumSize(QtCore.QSize(249, 450))
-        self.toolBox.resize(249, 450)        
-        self.toolBox.update()
-        self.update_further()
+        if(self.controller.probmaps_does_exist()):
+            self.label_suggest_seg.show()
+            self.spinBox_suggest_seg.show()
+            self.toolButtonSuggestSegAcc.show()
+            self.toolButtonSuggestSegShow.show()
+            self.toolBox.setMinimumSize(QtCore.QSize(249, 460))
+            self.toolBox.resize(249, 460)        
+            self.toolBox.update()
+            self.update_further()
+            
+        else:
+            self.label_suggest_seg.hide()
+            self.spinBox_suggest_seg.hide()
+            self.toolButtonSuggestSegAcc.hide()
+            self.toolButtonSuggestSegShow.hide()
+            self.toolBox.setMinimumSize(QtCore.QSize(249, 450))
+            self.toolBox.resize(249, 450)        
+            self.toolBox.update()
+            self.update_further()
     
     def enable_cca_tools(self):
         self.toolButtonNextComp.setDisabled(False)
@@ -1291,8 +1470,21 @@ class Ui_toolBox(object):
         self.toolButtonGrab.setDisabled(False)       
         self.toolButtonBBox.setDisabled(False)  
         self.label_4.show()
-        self.horizontalSliderEnface.show()    
+        self.horizontalSliderEnface.show()  
         
+        self.label_40.show()
+        self.comboUncertainty.show()
+        
+        if(self.controller.probmaps_does_exist()):
+            self.comboUncertainty.setDisabled(False)
+        else:
+            self.comboUncertainty.setDisabled(True)
+        
+        self.toolBox.setMinimumSize(QtCore.QSize(249, 460))
+        self.toolBox.resize(249, 460)        
+        self.toolBox.update()
+        self.update_further()
+            
     def enable_enface_drusen_editing_tools(self):
         self.disable_all()
         
@@ -1331,7 +1523,18 @@ class Ui_toolBox(object):
         self.toolButtonLine.setDisabled(False)
         self.label.show()   
         self.horizontalSliderBscan.show()
-        
+        self.controller.set_editing_ga(5)
+        self.toolBox.setMinimumSize(QtCore.QSize(249, 450))
+        self.toolBox.resize(249, 450)        
+        self.toolBox.update()
+        self.update_further()
+
+    def enable_NGA_editing_tools(self):
+        self.toolButtonLine.setDisabled(False)
+        self.toolButtonBBox.setDisabled(False)
+        self.label.show()   
+        self.horizontalSliderBscan.show()
+        self.controller.set_editing_ga(6)
         self.toolBox.setMinimumSize(QtCore.QSize(249, 450))
         self.toolBox.resize(249, 450)        
         self.toolBox.update()
@@ -1348,6 +1551,8 @@ class Ui_toolBox(object):
             return 'Enface'
         if(self.radioButtonGA.isChecked()):
             return 'GA'
+        if(self.radioButtonNGA.isChecked()):
+            return 'nGA'
         if(self.radioButtonHRF.isChecked()):
             return 'HRF'
         return 'None'
@@ -1363,7 +1568,9 @@ class Ui_toolBox(object):
             self.enable_polyfit_tools()
         if(self.toolButtonCostPnt.isChecked()):
             self.enable_cost_point_tools()
-            
+        self.spinBox_suggest_seg.setValue(self.rpeRange)   
+        self.toolButtonSuggestSegShow.setChecked(self.rpeSuggShow)
+        
     def bm_editing_selected(self):
         self.disable_all()
         if(not self.radioButtonBM.isChecked()):
@@ -1375,7 +1582,9 @@ class Ui_toolBox(object):
             self.enable_polyfit_tools()
         if(self.toolButtonCostPnt.isChecked()):
             self.enable_cost_point_tools()
-            
+        self.spinBox_suggest_seg.setValue(self.bmRange)    
+        self.toolButtonSuggestSegShow.setChecked(self.bmSuggShow)
+        
     def drusen_editing_selected(self):
         self.disable_all()
         if(not self.radioButtonDrusen.isChecked()):
@@ -1422,6 +1631,13 @@ class Ui_toolBox(object):
             self.radioButtonGA.setChecked(True)
         self.controller.unset_editing_layer()
         self.enable_GA_editing_tools()
+    
+    def nga_editing_selected(self):
+        self.disable_all()
+        if(not self.radioButtonNGA.isChecked()):
+            self.radioButtonNGA.setChecked(True)
+        self.controller.unset_editing_ga()
+        self.enable_NGA_editing_tools()    
     
     def drusen_splitting_maxima_as_marker_selected(self):
         self.radioButtonManualMarker.setChecked(False)
@@ -1487,6 +1703,16 @@ class Ui_toolBox(object):
             self.separationThreshold=value
         elif(self.synchronize==2):
             self.synchronize=0
+            
+    def spinbox_suggest_segmentation_value_changed(self):
+        activeEditIndex=self.get_active_edit_index()
+        if(activeEditIndex==0): # RPE
+            self.rpeRange=self.spinBox_suggest_seg.value()
+            self.controller.layer_seggestion_value_changed('RPE',self.rpeRange)
+        if(activeEditIndex==1): # BM
+            self.bmRange=self.spinBox_suggest_seg.value()  
+            self.controller.layer_seggestion_value_changed('BM',self.bmRange)
+            
     def get_neighborhood_size(self):
         return self.druseSplitingNeighborhood
         
@@ -1513,6 +1739,8 @@ class Ui_toolBox(object):
             return 4
         elif(self.radioButtonGA.isChecked()):
             return 5
+        elif(self.radioButtonNGA.isChecked()):
+            return 6
         else:
             return -1
             
@@ -1540,6 +1768,9 @@ class Ui_toolBox(object):
             self.controller.separation_theshold_changed(self.separationThreshold)
         elif(self.synchronize==2):
             self.synchronize=0
+    
+    def combo_uncertainty_value_changed(self):
+        self.controller.uncertainty_projection_changed(self.comboUncertainty.currentIndex())
         
     def set_separation_threshold_range(self,minVal,maxVal):
         self.spinBoxSeparationThreshold.setMinimum(minVal-1)
@@ -1559,3 +1790,18 @@ class Ui_toolBox(object):
         self.enable_probability_related_tools=False
         self.toolButtonCostPnt.setDisabled(True)
         self.toolButtonPolyFit.setDisabled(True)
+        
+    def accept_suggested_segmentation(self):
+        self.controller.accept_suggested_segmentation(self.get_active_edit_index())
+        self.controller.write_in_log(self.controller.get_time()+','+\
+            self.toolButtonSuggestSegAcc.objectName()+','+\
+            self.get_current_active_window()+'\n')
+    def show_suggested_segmentation(self):
+        activeEditIndex=self.get_active_edit_index()
+        if(activeEditIndex==0): # RPE
+            self.rpeSuggShow=False if self.rpeSuggShow else True
+            self.controller.layer_seggestion_vis_changed('RPE',self.rpeSuggShow)
+        if(activeEditIndex==1): # BM
+            self.bmSuggShow=False if self.bmSuggShow else True
+            self.controller.layer_seggestion_vis_changed('BM',self.bmSuggShow)
+            
