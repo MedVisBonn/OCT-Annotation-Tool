@@ -6,6 +6,7 @@ Created in 2018
 """
 import re
 import os
+import copy
 import pickle
 import numpy as np
 import scipy as sc
@@ -23,7 +24,7 @@ import drusenextractor
 
 octParams = dict()
 octParams['bResolution'] = 'high' #high
-octParams['hx'] = 200./16. #x axis in each B-scan
+octParams['hx'] = 200./17. #x axis in each B-scan
 octParams['hy'] = 200./51. #y axis in each B-scan 
 octParams['hz'] = 200./10. #z axis in direction of B-scan slices
 octParams['zRate'] = 2 #every 13 pixels for low resolution, every two pixels for high res
@@ -37,7 +38,7 @@ class OCT:
         self.saveFormat='png'
         self.scanPath=""
         self.bResolution=''
-        self.hx=200./16. #x axis in each B-scan
+        self.hx=200./17. #x axis in each B-scan
         self.hy=200./51. #y axis in each B-scan 
         self.hz=200./10. #z axis in direction of B-scan slices
         self.zRate=0. #every 13 pixels for low resolution, every two pixels for high res
@@ -45,13 +46,28 @@ class OCT:
         self.layers= None
         self.hrfs=None
         self.gas=None
+        self.ngas=None
         self.drusen= None
         self.enface= None
         self.enfaceDrusen=None
         self.hrfStatus=None
         self.hrfBBox=None
+        self.ngaBBox=None
         self.enfaceBBox=None
         self.probMaps=None
+        self.uncerEntRPE=None
+        self.uncerProRPE=None
+        self.uncerEntBM=None
+        self.uncerProBM=None
+        
+        # Probable layers
+        self.rpeCSPs=None
+        self.bmProbable=None
+        self.rpeSuggestExtent=0
+        self.bmSuggestExtent=0
+        self.rpeSuggestShow=True
+        self.bmSuggestShow=True
+        
         self.numSlices=0
         self.width=0
         self.height=0
@@ -76,15 +92,62 @@ class OCT:
         self.progressBarValue=0
         
         self.certainSlices=list()
+        self.editedLayers=list()
         
         self.GTlayers=None
         self.distances=list()
         self.overallDistance=10000
         
+        self.GTdrusen=None
+        self.drusenDistances=list()
+        self.drusenOverallDistance=10000        
+        
+        self.splineKnots=None
+    
+        self.evaluateLayers=False
+        self.evaluateDrusen=False
+        
+    def set_rpe_suggest_show(self,status):
+        self.rpeSuggestShow=status       
+        
+    def set_bm_suggest_show(self,status):
+        self.bmSuggestShow=status
+            
+    def get_rpe_csps(self,sliceNumZ):
+        if(not self.rpeCSPs is None and not self.rpeCSPs[sliceNumZ] is None):
+            return self.rpeCSPs[sliceNumZ]
+        return None
+        
+    def get_num_scans(self):
+        return self.numSlices
+        
+    def get_dim(self):
+        return self.height,self.width
+        
+    def get_GT_layer(self,layerNumber):
+        return np.copy(self.GTlayers[:,:,layerNumber-1])
+        
     def show_image(self, image, block = True ):
         plt.imshow( image, cmap = plt.get_cmap('gray'))
-        plt.show(block)    
-          
+        plt.show(block)  
+        
+    def set_rpe_suggest_extent(self,val):
+        self.rpeSuggestExtent=val
+        
+    def set_bm_suggest_extent(self,val):
+        self.bmSuggestExtent=val
+    
+    def get_rpe_suggest_extent(self):
+        return self.rpeSuggestExtent
+        
+    def get_bm_suggest_extent(self):
+        return self.bmSuggestExtent
+        
+    def set_spline_knots(self,knots):
+        self.splineKnots=knots
+    
+    def set_spline_knots_layer(self,knots,sliceZ,layerName):
+        self.splineKnots[sliceZ][layerName]=knots
         
     def set_scan_path(self,scanPath):
         self.scanPath=scanPath  
@@ -94,6 +157,9 @@ class OCT:
         
     def set_layers(self,layers):
         self.layers=layers
+    
+    def set_layer(self,layer,sliceNumZ):
+        self.layers[:,:,sliceNumZ]=layer
         
     def set_prob_maps(self,probMaps):
         self.probMaps=probMaps
@@ -106,6 +172,12 @@ class OCT:
         
     def set_ga(self,s,e,color,sliceNum):
         self.gas[:,s:e+1,sliceNum-1]=color
+        
+    def set_ngas(self,ngas):
+        self.ngas=ngas
+        
+    def set_nga(self,s,e,color,sliceNum):
+        self.ngas[:,s:e+1,sliceNum-1]=color
         
     def set_drusen(self,drusen):
         self.drusen=drusen
@@ -125,6 +197,9 @@ class OCT:
     def set_hrf_bounding_boxes(self,bbox):
         self.hrfBBox=bbox
     
+    def set_nga_bounding_boxes(self,bbox):
+        self.ngaBBox=bbox
+        
     def set_enface_bounding_boxes(self,bbox):
         self.enfaceBBox=bbox
     
@@ -134,6 +209,30 @@ class OCT:
     def set_progress_val(self,val):
         self.progressBarValue=val
         
+    def set_uncertainty_color_map(self,umap,layerName,uncertaintyType):
+        if(layerName=='RPE'):
+            if(uncertaintyType=='Entropy'):
+                self.uncerEntRPE=umap
+            elif(uncertaintyType=='Probability'):
+                self.uncerProRPE=umap
+        elif(layerName=='BM'):
+            if(uncertaintyType=='Entropy'):
+                self.uncerEntBM=umap
+            elif(uncertaintyType=='Probability'):
+                self.uncerProBM=umap
+                
+    def get_uncer_map(self,layerName,uncertaintyType):
+        if(layerName=='RPE'):
+            if(uncertaintyType=='Entropy'):
+                return  self.uncerEntRPE
+            elif(uncertaintyType=='Probability'):
+                return  self.uncerProRPE 
+        elif(layerName=='BM'):
+            if(uncertaintyType=='Entropy'):
+                return self.uncerEntBM
+            elif(uncertaintyType=='Probability'):
+                return self.uncerProBM
+        return None
         
     def save_drusen(self,savePath):
         savePath=os.path.join(savePath,'drusen')
@@ -203,13 +302,14 @@ class OCT:
                             '-2-layers.tif'),self.probMaps[:,:,2,s])
                         io.imsave(os.path.join(savePath2,str(self.scanIDs[s])+\
                             '-3-layers.tif'),self.probMaps[:,:,3,s])
+                uc=self.controller.get_uncertainties()     
+                if(not uc is None):
+                    u1,u2,u3=uc
+                    if((not u1 is None) and (not u2 is None) and (not u3 is None)):
+                        np.savetxt(os.path.join(savePath2,'prob-entropy.txt'),np.asarray(u1))
+                        np.savetxt(os.path.join(savePath2,'prob.txt'),np.asarray(u2))
+                        np.savetxt(os.path.join(savePath2,'entropy.txt'),np.asarray(u3))
                         
-                u1,u2,u3=self.controller.get_uncertainties()
-                if((not u1 is None) and (not u2 is None) and (not u3 is None)):
-                    np.savetxt(os.path.join(savePath2,'prob-entropy.txt'),np.asarray(u1))
-                    np.savetxt(os.path.join(savePath2,'prob.txt'),np.asarray(u2))
-                    np.savetxt(os.path.join(savePath2,'entropy.txt'),np.asarray(u3))
-                    
                 self.controller.hide_progress_bar()
                 
     def save_layers_as(self,saveName):
@@ -285,7 +385,6 @@ class OCT:
             np.savetxt(os.path.join(savePath,saveName+'.txt'),self.hrfStatus)
             self.save_bbox(os.path.join(savePath,saveName+'-bounding-box.txt'),\
                                          self.hrfBBox)
-            
     def save_gas(self,savePath):
         savePath=os.path.join(savePath,'GA')
         if(self.gas is not None):
@@ -301,6 +400,25 @@ class OCT:
                     misc.imsave(os.path.join(savePath,str(self.scanIDs[s])+\
                                                     '-ga.png'),self.gas[:,:,s])
                 self.controller.hide_progress_bar()
+    
+    def save_ngas(self,savePath):
+        savePath=os.path.join(savePath,'nGA')
+        if(self.ngas is not None):
+            self.create_directory(savePath)
+            if(self.saveFormat=='pkl'):
+                gaLoc=np.where(self.ngas>0)
+                self.write_pickle_data(os.path.join(savePath,'ngas.pkl'),gaLoc)
+            else:
+                self.controller.show_progress_bar("Saving")
+                pStep=100/float(max(1,self.ngas.shape[2]))
+                for s in range(self.ngas.shape[2]):
+                    self.controller.update_progress_bar_value(pStep)
+                    misc.imsave(os.path.join(savePath,str(self.scanIDs[s])+\
+                                                    '-nga.png'),self.ngas[:,:,s])
+                self.controller.hide_progress_bar()
+            self.save_bbox(os.path.join(savePath,'ngas-bounding-box.txt'),\
+                self.ngaBBox)         
+                
     def save_gas_as(self,saveName):
         if(self.gas is not None):
             if(self.saveFormat=='pkl'):
@@ -316,6 +434,24 @@ class OCT:
                     misc.imsave(os.path.join(savePath,str(self.scanIDs[s])+'-'+\
                                               saveName+'.png'),self.gas[:,:,s]) 
                 self.controller.hide_progress_bar()   
+            self.save_bbox(os.path.join(savePath,saveName+'-bounding-box.txt'),\
+                                         self.ngaBBox)
+                                         
+    def save_ngas_as(self,saveName):
+        if(self.ngas is not None):
+            if(self.saveFormat=='pkl'):
+                gaLoc=np.where(self.ngas>0)
+                self.write_pickle_data(saveName,gaLoc) 
+            else:
+                savePath,saveName=os.path.split(saveName)
+                savePath=os.path.join(savePath,'nGA')
+                self.controller.show_progress_bar("Saving")
+                pStep=100/float(max(1,self.ngas.shape[2]))
+                for s in range(self.ngas.shape[2]):
+                    self.controller.update_progress_bar_value(pStep)
+                    misc.imsave(os.path.join(savePath,str(self.scanIDs[s])+'-'+\
+                                              saveName+'.png'),self.ngas[:,:,s]) 
+                self.controller.hide_progress_bar()  
                 
     def save_enface(self,savePath):
         savePath=os.path.join(savePath,'reticular-drusen')
@@ -365,9 +501,7 @@ class OCT:
         df=pd.DataFrame(drusenInfo,index=(np.arange(len(areaM))+1),\
                         columns=['Center','Area','Height','Volume','Diameter'])
         df.to_csv(saveName, sep='\t')
-
         return  
-
             
     def get_scan_path(self):
         return self.scanPath
@@ -519,9 +653,50 @@ class OCT:
                     self.gas=np.copy(rawstack)
             if(self.gas is None):
                 self.gas=np.zeros(self.scans.shape)
-            
         return self.gas  
-            
+    
+    def get_ngas(self):
+        """
+        Read the NGA segmentation maps from the disk if they exist.
+        """
+        scanPath=os.path.join(self.scanPath,'nGA')
+        if(self.ngas is None):  
+            if(self.saveFormat=='pkl'):
+                gasLoc=self.read_pickle_data(os.path.join(scanPath,'ngas.pkl'))
+                self.ngas=np.zeros(self.scans.shape)
+                self.ngas[gasLoc]=255
+            elif(self.saveFormat=='png'):
+                self.create_directory(scanPath)
+                d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]
+                rawstack = list()
+                ind = list()
+                rawStackDict=dict()   
+                rawSize=()
+                for fi in range(len(d2)):
+                     filename = os.path.join(scanPath,d2[fi])
+                     ftype = d2[fi].split('-')[-1]
+                     if(ftype=='nga.png'):
+                         ind.append(int(d2[fi].split('-')[0]))
+                
+                         raw = io.imread(filename)
+                         rawSize = raw.shape
+                         rawStackDict[ind[-1]]=raw
+                if(len(rawSize)>0):
+                    rawstack=np.empty((rawSize[0],rawSize[1],len(ind)))   
+                    keys=rawStackDict.keys()
+                    keys.sort()
+                    i=0
+                    for k in keys:
+                        rawstack[:,:,i]=rawStackDict[k]
+                        i+=1
+                        
+                    self.ngas=np.copy(rawstack)
+            if(self.ngas is None):
+                self.ngas=np.zeros(self.scans.shape)
+            self.ngaBBox=self.get_bbox_from_file(os.path.join(scanPath,\
+                'ngas-bounding-box.txt'))
+        return self.ngas ,self.ngaBBox
+        
     def get_progress_val(self):
         return self.progressBarValue 
         
@@ -573,24 +748,76 @@ class OCT:
                 io.imsave(os.path.join(probPath,str(self.scanIDs[s])+'-3-'+\
                     saveName+'.tif'),probmaps[:,:,3,s])
         try:
-           
             self.certainSlices=list(np.where(np.loadtxt(os.path.join(probPath,\
                 'prob-entropy.txt'))==0.05)[0])
-            
         except:
             self.certainSlices=list()
+        
         self.progressBarValue=100
         self.controller.set_progress_bar_value(self.progressBarValue)
         QtGui.QApplication.processEvents()        
         d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]    
         return d2
         
+    def get_edited_layers(self):
+        return self.editedLayers
+    
+    def set_slice_edited(self,sliceNum,layerName,status):    
+        if(layerName=='RPE'):
+            self.editedLayers[sliceNum-1]['RPE']=status
+        elif(layerName=='BM'):
+            self.editedLayers[sliceNum-1]['BM']=status
+    
+    def set_evaluation_schemes(self,evaluateLayers,evaluateDrusen):
+        self.evaluateLayers=evaluateLayers
+        self.evaluateDrusen=evaluateDrusen
+        
+    def get_GT_drusen(self):
+        """
+        Read ground truth for the layer segmentation. Useful for the software
+        evaluation.
+        """
+        if(not self.GTdrusen is None):
+            return
+        scanPath=os.path.join(self.scanPath,'GTdrusen')
+        showDrusenOnScan=False
+        d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]
+        rawstack = list()
+        ind = list()
+        rawStackDict=dict()   
+        rawSize=()
+        for fi in range(len(d2)):
+             filename = os.path.join(scanPath,d2[fi])
+             ftype = d2[fi].split('-')[-1]
+             if(ftype=='drusen.png'):
+                 ind.append(int(d2[fi].split('-')[0]))
+        
+                 raw = io.imread(filename)
+                 rawSize = raw.shape
+                 rawStackDict[ind[-1]]=raw
+        if(len(rawSize)>0):
+            rawstack=np.empty((rawSize[0],rawSize[1],len(ind)))   
+            keys=rawStackDict.keys()
+            keys.sort()
+            i=0
+            for k in keys:
+                rawstack[:,:,i]=rawStackDict[k]
+                if(showDrusenOnScan):
+                    y,x=np.where(rawstack[:,:,i]>0)
+                    self.scans[y,x,i]=255
+                i+=1
+              
+            self.GTdrusen=np.copy(rawstack)
+            self.compute_distances_drusen()
+            
     def get_GT_layers(self):
         """
         Read ground truth for the layer segmentation. Useful for the software
         evaluation.
         """
-        scanPath=os.path.join(self.scanPath,'GT')
+        if(not self.GTlayers is None):
+            return
+        scanPath=os.path.join(self.scanPath,'GTlayers')
         showLayersOnScan=False
         d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]
         rawstack = list()
@@ -619,9 +846,16 @@ class OCT:
                 i+=1
                 
             self.GTlayers=np.copy(rawstack)
+            self.compute_distances()
             
     def get_distances(self):
         return self.overallDistance,self.distances
+    
+    def get_distances_drusen(self):
+        return self.drusenOverallDistance,self.drusenDistances
+    
+    def get_layer(self,sliceNumZ):
+        return self.layers[:,:,sliceNumZ]
         
     def get_layers(self):
         """
@@ -695,7 +929,19 @@ class OCT:
                         
                     self.layers=np.copy(rawstack)
                     self.change_layers_format_for_GUI()
-        
+            # Initialize Knots
+            self.splineKnots=[None]*self.layers.shape[2]
+        if(self.rpeCSPs is None):
+            self.rpeCSPs=[None]*self.layers.shape[2]
+        if(self.bmProbable is None):
+            self.bmProbable=[None]*self.layers.shape[2]
+        for i in range(self.layers.shape[2]):
+            e=dict()
+            e['RPE']=False
+            e['BM']=False
+            self.editedLayers.append(e)
+        if(self.evaluateLayers):
+            self.get_GT_layers()
         return self.layers
         
     def get_prob_maps(self):
@@ -704,7 +950,7 @@ class OCT:
     def get_current_path(self):
         return self.scanPath
         
-    def get_drusen(self):
+    def get_drusen(self,hfilter=0):
         """
         Read the drusen segmentation maps from the disk if exists, otherwise,
         compute them automatically from the retinal layer segmentations.
@@ -736,6 +982,8 @@ class OCT:
                          rawSize = raw.shape
                          raw[raw>0]=1
                          raw=self.filter_drusen_by_size(raw)
+                         if(hfilter>0):
+                             raw=self.filter_druse_by_max_height(raw,hfilter)
                          raw=raw*255
                          rawStackDict[ind[-1]]=raw
                 if(len(rawSize)>0):
@@ -778,7 +1026,8 @@ class OCT:
                         rawstack[:,:,i]=rawStackDict[k]
                         i+=1
                     self.drusen=np.copy(rawstack)
-        
+        if(self.evaluateDrusen):
+            self.get_GT_drusen()
         return self.drusen
         
     def get_enface(self):
@@ -806,7 +1055,7 @@ class OCT:
         """
         Compute the enface projection for the drusen segmentation maps.
         """        
-        if(recompute):
+        if((not self.drusen is None) and recompute):
             self.enfaceDrusen=((np.sum(self.drusen,axis=0)>0).astype(int).T)*255
         return self.enfaceDrusen
         
@@ -829,13 +1078,11 @@ class OCT:
     def get_BM_layer(self,seg_img):
         y = []
         x = []
-        if( len(np.unique(seg_img)) == 4 ):
-            tmp = np.zeros(seg_img.shape)
-            tmp[np.where(seg_img==170)] = 255
-            tmp[np.where(seg_img==85)] = 255
-            y, x = np.where(tmp==255)          
-        else:
-            y, x = np.where(seg_img==127)
+        tmp = np.zeros(seg_img.shape)
+        tmp[np.where(seg_img==170)] = 255
+        tmp[np.where(seg_img==85)] = 255
+        tmp[np.where(seg_img==127)] = 255
+        y, x = np.where(tmp==255)          
         return y, x 
         
     def get_RPE_location( self,seg_img ):
@@ -860,13 +1107,11 @@ class OCT:
         tmp = np.copy(seg_img)
         if( np.sum(seg_img)==0.0):
             return y, x
-        if( len(np.unique(tmp)) == 4 ):
-            tmp2 = np.zeros(tmp.shape)
-            tmp2[np.where(tmp==170)] = 255
-            tmp2[np.where(tmp==85)] = 255
-            y, x = np.where(tmp2==255)
-        else:
-            y, x = np.where(tmp==127)
+        tmp2 = np.zeros(tmp.shape)
+        tmp2[np.where(tmp==170)] = 255
+        tmp2[np.where(tmp==85)] = 255
+        tmp2[np.where(tmp==127)]=255
+        y, x = np.where(tmp2==255)
         return y, x 
         
     def get_label_of_largest_component(self,labels ):
@@ -878,9 +1123,6 @@ class OCT:
         return self.cx, self.cy, self.area, self.height, self.volume,\
                self.largeR, self.smallR,self.theta
         
-        
-        
-    
     def hrf_exist_in_slice(self,sliceNum):
         s=np.sum(self.hrfs[:,:,sliceNum-1])
         if(s>0):
@@ -902,18 +1144,18 @@ class OCT:
                 self.layers[ybm,xbm,s]=127
                 
     def change_layers_format_for_saving(self):
-        layers=self.layers
+        layers=np.copy(self.layers)
         for s in range(layers.shape[2]):                    
             if(170 in layers[:,:,s]):
                 # Join point
                 y,x=np.where(layers[:,:,s]==170)
                 # RPE
-                yrpe,xrpe=np.where(self.layers[:,:,s]==255)
+                yrpe,xrpe=np.where(layers[:,:,s]==255)
                 # BM
-                ybm,xbm=np.where(self.layers[:,:,s]==127)
-                self.layers[yrpe,xrpe,s]=170
-                self.layers[ybm,xbm,s]=85
-                self.layers[y,x,s]=255
+                ybm,xbm=np.where(layers[:,:,s]==127)
+                layers[yrpe,xrpe,s]=170
+                layers[ybm,xbm,s]=85
+                layers[y,x,s]=255
         return layers
         
     def interpolate_layer_in_region(self,reg,reg2,by,ty,bx,tx,topLeftX,\
@@ -931,6 +1173,7 @@ class OCT:
             info['uncertainties']=None
         info['topLeftX']=topLeftX
         info['topLeftY']=topLeftY
+        info['prevStatus']=self.editedLayers[sliceNum-1][layerName]
         interpolated=self.drusenSegmenter.interpolate_layer_in_region(reg,reg2,\
                 by,ty,bx,tx,polyDegree,layerName)
         interpolated[np.where(interpolated==85)]=127.
@@ -950,6 +1193,7 @@ class OCT:
                 self.probMaps[y+topLeftY,x+topLeftX,1,sliceNum-1]=1.
                 
         info['reg']=np.copy(interpolated)
+        self.editedLayers[sliceNum-1][layerName]=True
         return info
         
     def interpolate_layer_in_region_using_info(self,info,sliceNumZ,layerName):
@@ -957,11 +1201,11 @@ class OCT:
         
         self.layers[info['topLeftY']:info['topLeftY']+reg.shape[0],\
              info['topLeftX']:info['topLeftX']+reg.shape[1],sliceNumZ]=info['layers']
+        self.editedLayers[sliceNumZ][layerName]=info['prevStatus']
         if(not info['probMaps'] is None):   
             self.probMaps[:,:,:,sliceNumZ]=info['probMaps']
             self.layerSegmenter.set_uncertainties(info['uncertainties'],sliceNumZ)  
             self.controller.set_uncertainties(info['uncertainties'],sliceNumZ)  
-            
    
     def convert_indices(self,s):
         ids=np.unique(s)
@@ -1011,10 +1255,35 @@ class OCT:
             return 0
         return nom/denom
     
-    def update_distance(self,sliceNumZ):
+    def compute_distance_OR(self,gt,pr):
+        
+        gtRpe=(np.cumsum((gt>128).astype(float),axis=0)>0).astype(float)
+        gtBM=(np.cumsum((np.logical_and(gt<128,gt!=0)).astype(float).\
+                                astype(float),axis=0)>0).astype(float)
+        falsePos=np.sum(gtBM,axis=0)
+        falsePos=np.where(falsePos==0)
+        gtarea=gtRpe-gtBM
+        gtarea[np.where(gtarea<0)]=0.
+        for fp in falsePos:
+            gtarea[:,fp]=0.
+        prRpe=(np.cumsum((pr>128).astype(float).astype(float),axis=0)>0).astype(float)
+        prBM=(np.cumsum((np.logical_and(pr<128,pr!=0)).astype(float).\
+                                astype(float),axis=0)>0).astype(float)
+        falsePos=np.sum(prBM,axis=0)
+        falsePos=np.where(falsePos==0)
+        prarea=prRpe-prBM
+        prarea[np.where(prarea<0)]=0.
+        for fp in falsePos:
+            prarea[:,fp]=0.
+        denom = float(np.sum((np.logical_or(gtarea>0, prarea>0)>0).astype('float')))
+        nom   = float(np.sum((np.logical_and(gtarea>0, prarea>0)>0).astype('float')))
+        OR      = nom/denom if denom > 0 else 1.0
+        return OR 
+    
+    def c(self,sliceNumZ):
         gt=self.GTlayers[:,:,sliceNumZ]        
         pr=self.layers[:,:,sliceNumZ]
-        dist=self.compute_distance(gt,pr)
+        dist=self.compute_distance_OR(gt,pr)
         self.distances[sliceNumZ]=dist
         self.overallDistance=sum(self.distances)/float(len(self.distances))
         return self.overallDistance,self.distances
@@ -1026,14 +1295,56 @@ class OCT:
             self.distances.append(d)
             sumD+=d
         self.overallDistance=sumD/float(len(self.distances))
+    
+    def compute_distance_drusen(self,gt,pr):
+        prr=np.sum((pr>0).astype(int))
+        gtt=np.sum((gt>0).astype(int))
+        dist=np.abs(gtt-prr)
+        return dist
+    
+    def compute_distance_drusen_OR(self,gt,pr):
+        gt = gt.astype('float')
+        pr = pr.astype('float')
+        gt[gt>0]  = 1.0
+        gt[gt<=0] = 0.0
+        pr[pr>0]  = 1.0
+        pr[pr<=0] = 0.0
         
-   
+        denom = float(np.sum((np.logical_or(gt>0, pr>0)>0).astype('float')))
+        nom   = float(np.sum((np.logical_and(gt>0, pr>0)>0).astype('float')))
+        OR      = nom/denom if denom > 0 else 1.0
+        return OR
+    
+    def update_distance(self,sliceNumZ):
+        gt=self.GTlayers[:,:,sliceNumZ]        
+        pr=self.layers[:,:,sliceNumZ]
+        dist=self.compute_distance(gt,pr)
+        self.distances[sliceNumZ]=dist
+        self.overallDistance=sum(self.distances)/float(len(self.distances))
+        return self.overallDistance,self.distances    
+    
+    def update_distance_drusen(self,sliceNumZ):
+        gt=self.GTdrusen[:,:,sliceNumZ]        
+        pr=self.drusen[:,:,sliceNumZ]
+        dist=self.compute_distance_drusen_OR(gt,pr)
+        self.drusenDistances[sliceNumZ]=dist
+        self.drusenOverallDistance=sum(self.drusenDistances)/float(len(self.drusenDistances))
+        return self.drusenOverallDistance,self.drusenDistances
+        
+    def compute_distances_drusen(self):
+        sumD=0
+        for s in range(self.drusen.shape[2]):
+            d=self.compute_distance_drusen_OR(self.GTdrusen[:,:,s],self.drusen[:,:,s])
+            self.drusenDistances.append(d)
+            sumD+=d
+        self.drusenOverallDistance=sumD/float(len(self.drusenDistances))
+        
     def probmaps_does_exist(self):
         scanPath=os.path.join(self.scanPath,'layers')
         probPath=os.path.join(os.path.split(scanPath)[0],'probabilityMaps')
         self.create_directory(probPath)
         d2=[f for f in listdir(probPath) if isfile(join(probPath, f))]
-        if(len(d2)==0):
+        if(len(d2)<self.scans.shape[2]*4):
             return False
         return True
    
@@ -1086,6 +1397,99 @@ class OCT:
     def compute_uncertainties(self):
         self.layerSegmenter.compute_segmentation_uncertainty(self.certainSlices)
 
+    def accept_suggested_segmentation(self,layerName,sliceNumZ,smoothness,\
+            uncertaintyType,extent,csps):
+        info=dict()
+        info['layer']=np.copy(self.layers[:,:,sliceNumZ])
+        
+        if(not self.probMaps is None):
+            info['probMaps']=np.copy(self.probMaps[:,:,:,sliceNumZ])
+            info['uncertainties']=self.layerSegmenter.get_uncertainties(sliceNumZ)
+        else:
+            info['probMaps']=None
+            info['uncertainties']=None
+        info['prevStatus']=self.editedLayers[sliceNumZ][layerName]
+        if(layerName=='RPE'):
+            self.rpeCSPs[sliceNumZ]=csps
+            self.rpeSuggestExtent=extent
+            layer=self.get_probable_RPE(sliceNumZ,smoothness)
+            info['rpeCSPs']=self.rpeCSPs[sliceNumZ]
+            info['suggestExtent']=extent
+            if(not csps is None):
+                for p in self.rpeCSPs[sliceNumZ]:
+                    i=p[0]
+                    j=p[1]
+                    self.probMaps[:,j,3,sliceNumZ]=0
+                    self.probMaps[:,j,2,sliceNumZ]=0
+                    self.probMaps[i,j,2,sliceNumZ]=1.
+            rpeImg,bmImg=self.decompose_into_RPE_BM_images(self.layers[:,:,sliceNumZ])
+            layer=self.combine_RPE_BM_images(layer.astype(int)*255,bmImg)
+        if(layerName=='BM'):
+            self.bmSuggestExtent=extent
+            layer=self.get_probable_BM(sliceNumZ,uncertaintyType)
+            rpeImg,bmImg=self.decompose_into_RPE_BM_images(self.layers[:,:,sliceNumZ])
+            layer=self.combine_RPE_BM_images(rpeImg,layer.astype(int)*255)
+            info['suggestExtent']=self.bmSuggestExtent
+        if(not self.splineKnots is None and not self.splineKnots[sliceNumZ] is None and (layerName in self.splineKnots[sliceNumZ].keys()) and (not self.splineKnots[sliceNumZ][layerName] is None)):
+            self.splineKnots[sliceNumZ][layerName]=None
+        self.layers[:,:,sliceNumZ]=np.copy(layer)
+        self.editedLayers[sliceNumZ][layerName]=True
+        return info
+
+    def accept_suggested_segmentation_using_info(self,info,sliceNumZ,layerName,extent,csps):
+        if(layerName=='RPE'):
+            self.rpeSuggestExtent=info['suggestExtent']
+            self.rpeCSPs[sliceNumZ]=info['rpeCSPs']
+            self.probMaps[:,:,:,sliceNumZ]=np.copy(info['probMaps'])
+        elif(layerName=='BM'):
+            self.bmSuggestExtent=info['suggestExtent']
+        self.layers[:,:,sliceNumZ]=np.copy(info['layer'])
+        self.editedLayers[sliceNumZ][layerName]=info['prevStatus']
+        
+        if(not info['probMaps'] is None):   
+            self.probMaps[:,:,:,sliceNumZ]=info['probMaps']
+            self.layerSegmenter.set_uncertainties(info['uncertainties'],sliceNumZ)  
+            self.controller.set_uncertainties(info['uncertainties'],sliceNumZ)  
+            
+    def get_probable_RPE(self,sliceNumZ,smoothness):
+        rpelayer=None
+        if( not self.rpeCSPs[sliceNumZ] is None and self.rpeSuggestExtent>0):
+            rpelayer=self.layerSegmenter.\
+                    update_probability_image_multi_points(self.rpeCSPs[sliceNumZ],sliceNumZ,smoothness)
+        return rpelayer
+        
+    def get_probable_BM(self,sliceNumZ,uncertaintyType):
+        bmlayer=None
+        if( self.bmSuggestExtent>0):
+            bmlayer=self.layerSegmenter.\
+                            estimate_bm_3d(sliceNumZ,self.bmSuggestExtent,uncertaintyType)   
+        return bmlayer
+    
+    def get_probable_layers(self,sliceNumZ,smoothness,uncertaintyType='entropy',showSuggestedSegmentation=None):
+        # Check if there are suggested CSPs for the RPE layer
+        rpelayer=self.get_probable_RPE(sliceNumZ,smoothness)
+        bmlayer=self.get_probable_BM(sliceNumZ,uncertaintyType)
+        
+        rpelayer=rpelayer if self.rpeSuggestShow else None
+        bmlayer=bmlayer if self.bmSuggestShow else None
+        
+        if(rpelayer is None and bmlayer is None):
+            return None
+        
+        if(rpelayer is None):
+            rpelayer=np.zeros(bmlayer.shape)
+            rpelayer=rpelayer*2+bmlayer
+            return rpelayer
+        elif(bmlayer is None):    
+            bmlayer=np.zeros(rpelayer.shape)
+            rpelayer=rpelayer*2+bmlayer
+            return rpelayer
+        else:
+            rpelayer=rpelayer*2+bmlayer
+            return rpelayer
+        
+        return None
+        
     def update_cost_rpe(self,i,j,sliceNumZ,smoothness): 
         info=dict()
         self.compute_prob_maps()
@@ -1095,6 +1499,25 @@ class OCT:
         info['smoothness']=smoothness
         self.layers[:,:,sliceNumZ]=self.layerSegmenter.\
                     update_probability_image(i,j,sliceNumZ,'RPE',smoothness)
+        info['prevStatus']=self.editedLayers[sliceNumZ]['RPE']
+        self.editedLayers[sliceNumZ]['RPE']=True
+        info['CSP']=copy.copy(self.rpeCSPs)
+        # ProposeSegmentation for neighbors
+        # Find shortest path in A-scan direction
+        if(self.rpeSuggestExtent>0):
+            shortestP=self.layerSegmenter.compute_shortest_path_in_A_scan_direction(i,j,sliceNumZ,smoothness,self.rpeSuggestExtent)
+            startLayer=max(0,sliceNumZ-self.rpeSuggestExtent)
+            endLayer=min(self.layers.shape[2]-1,sliceNumZ+self.rpeSuggestExtent)
+            for i in range(startLayer,endLayer+1):
+                if(i==sliceNumZ):
+                    continue
+                if(self.rpeCSPs[i] is None):
+                    self.rpeCSPs[i]=set()
+                y=np.where(shortestP[:,i]>0)[0][0]
+                self.rpeCSPs[i].add((y,j))
+            # If current layer has probable points, delete them, as it is updated
+            if(not self.rpeCSPs[sliceNumZ] is None):
+                self.rpeCSPs[sliceNumZ]=None
         return info
 
     def update_cost_rpe_using_info(self,info,sliceNumZ):
@@ -1103,7 +1526,8 @@ class OCT:
         self.layerSegmenter.set_uncertainties(info['uncertainties'],sliceNumZ)
         self.layerSegmenter.set_yLength(info['smoothness'])
         self.controller.set_uncertainties(info['uncertainties'],sliceNumZ)
-        
+        self.editedLayers[sliceNumZ]['RPE']=info['prevStatus']
+        self.rpeCSPs=copy.copy(info['CSP'])
     def update_cost_bm(self,i,j,sliceNumZ,smoothness):
         info=dict()
         self.compute_prob_maps()
@@ -1113,6 +1537,9 @@ class OCT:
         info['smoothness']=smoothness
         self.layers[:,:,sliceNumZ]=self.layerSegmenter.\
                     update_probability_image(i,j,sliceNumZ,'BM',smoothness)
+                    
+        info['prevStatus']=self.editedLayers[sliceNumZ]['BM']
+        self.editedLayers[sliceNumZ]['BM']=True
         return info
 
     def update_cost_bm_using_info(self,info,sliceNumZ):
@@ -1120,6 +1547,7 @@ class OCT:
         self.layers[:,:,sliceNumZ]=info['layers']
         self.layerSegmenter.set_uncertainties(info['uncertainties'],sliceNumZ)   
         self.layerSegmenter.set_yLength(info['smoothness'])
+        self.editedLayers[sliceNumZ]['BM']=info['prevStatus']
         self.controller.set_uncertainties(info['uncertainties'],sliceNumZ)
         
     def get_drusen_from_path(self,scanPath):
@@ -1141,7 +1569,6 @@ class OCT:
             for s in range(drusen.shape[2]):
                 misc.imsave(os.path.join(scanPath,str(self.scanIDs[s])+'-'+\
                                                 saveName+'.png'),drusen[:,:,s])
-            
         d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]    
         return d2 
     
@@ -1172,11 +1599,11 @@ class OCT:
         rawStackDict=dict()   
         rawSize=()
         idCounter=1
-        
+        genDepth=1
         for root,dirs,files in os.walk(scanPath):
             depth=len(scanPath.split(os.path.sep))
             curDepth=len(root.split(os.path.sep))
-            if(curDepth>depth):
+            if(curDepth>depth or genDepth>1):
                 continue
             if(len(files)<=0):
                 return
@@ -1205,6 +1632,7 @@ class OCT:
                     
                     rawSize = raw.shape
                     rawStackDict[ind[-1]]=raw
+            genDepth+=1
         
         rawstack=np.empty((rawSize[0],rawSize[1],len(ind)))   
         keys=rawStackDict.keys()
@@ -1248,7 +1676,11 @@ class OCT:
     def insert_ga_at_slice(self,sliceNum,x,y,value):
         if(len(x)>0):
             self.gas[x,y,sliceNum-1]=value   
-            
+   
+    def insert_nga_at_slice(self,sliceNum,x,y,value):
+        if(len(x)>0):
+            self.ngas[x,y,sliceNum-1]=value  
+         
     def instert_druse_at_slice(self,sliceNum,x,y,value):
         if(len(x)>0):
             self.drusen[x,y,sliceNum-1]=value
@@ -1308,6 +1740,11 @@ class OCT:
             y_diff   = np.abs(y-y_n)
             y_max    = np.max(y_diff)
             if( total_y_max < y_max ):             
+                h,w=b_scan.shape
+                y[np.where(y>=h)]=h-1
+                x[np.where(x>=w)]=w-1
+                y_n[np.where(y_n>=h)]=h-1
+                x_n[np.where(x_n>=w)]=w-1
                 img_max.fill(0)
                 img_max[y,x]=255
                 img_max[y_n,x_n]=127
@@ -1331,11 +1768,11 @@ class OCT:
             upper_y[np.where(upper_y<0)]=0
             upper_y[np.where(upper_y>=height)]=height-1
             for ix in x:
-                n_bscan[y[c]:y_n[c],ix] = np.max(b_scan[upper_y[c]:y_n[c],ix])              
-                projection[i,ix] =  np.sum(n_bscan[upper_y[c]:y_n[c]+1,ix])    
+                if(b_scan[upper_y[c]:y_n[c],ix].shape[0]>0):
+                    n_bscan[y[c]:y_n[c],ix] = np.max(b_scan[upper_y[c]:y_n[c],ix])              
+                    projection[i,ix] =  np.sum(n_bscan[upper_y[c]:y_n[c]+1,ix])    
                 c += 1        
         return projection.astype('float'), masks
-        
         return y, x 
         
     def decompose_into_RPE_BM_images(self,image):
@@ -1345,10 +1782,31 @@ class OCT:
         
     def combine_RPE_BM_images(self,rpeImg,bmImg):
         join=rpeImg*bmImg
-        rpeImg[bmImg==255]=127.
+        if(np.sum(join)>0):
+            rpeImg[bmImg==255]=85.
+        else:
+            rpeImg[bmImg==255]=127.
         rpeImg[join>0]=170.
         return rpeImg
-        
+    
+    def combine_GA_NGA_images(self,ga,nga):
+        res=np.zeros(ga.shape)
+        join=ga*nga
+        res[ga>0]=1.
+        res[nga>0]=2.
+        res[join>0]=3.
+        return res
+    
+    def decompose_into_GA_NGA_images(self,img):
+        ga=img==1.
+        nga=img==2.
+        join=img==3.
+        ga[np.where(join==True)]=True
+        nga[np.where(join==True)]=True
+        ga=ga.astype(float)*255.
+        nga=nga.astype(float)*255.
+        return ga,nga
+    
     def normal_RPE_estimation(self, b_scan , degree = 3, it = 3, s_ratio = 1, \
                     farDiff = 5, ignoreFarPoints=True, returnImg=False,\
                     useBM = False,useWarping=True,xloc=[],yloc=[]):   
@@ -1416,11 +1874,9 @@ class OCT:
                 sy = tmpy[rand]
                 
                 z = np.polyfit(sx, sy, deg = degree)
-                
             else:
                 z = np.polyfit(tmpx, tmpy, deg = degree)
             p = np.poly1d(z)
-            
             new_y = p(finalx).astype('int')
             if( ignoreFarPoints ):
                 tmpx = []
@@ -1432,14 +1888,10 @@ class OCT:
                       tmpy.append(origy[i])
             else:
                 tmpy = np.maximum(new_y, tmpy)
-
             finaly = new_y
-        
         if( returnImg ):
             return finaly, finalx, tmp
-        
         return finaly, finalx
-        
         
     def find_area_btw_RPE_normal_RPE(self,mask):
             area_mask = np.zeros(mask.shape)
@@ -1465,9 +1917,7 @@ class OCT:
         hv=(np.sum(dmask,axis=0)).astype(int)
         dmask[:,hv<h_threshold]=0
         return dmask
-        
         drusen_mask = np.copy( dmask )
- 
         if( h_threshold == 0.0 and  max_h_t == 0.0 and\
                     w_over_h_ratio_threshold == 10000.0 ):
             return drusen_mask
@@ -1570,10 +2020,8 @@ class OCT:
         if(heights==[]):
             heights = self.compute_heights( cca )
         for l in labels:
-            
             region = cca == l
             max_hs[region] = np.max( region * heights )
-            
         return max_hs
         
     def compute_width_height_ratio_height_local_max(self,cca ):
@@ -1596,7 +2044,6 @@ class OCT:
                 if( len(local_maxima) == 0 ):
                     local_maxima = np.asarray([np.max(masked_heights)])
                 max_hs[region] = np.sum(local_maxima)        
-        
         return max_hs
         
     def compute_component_width(self,cca ):
@@ -1726,6 +2173,247 @@ class OCT:
         smallM=np.sqrt(xM**2+zM**2)
         return self.cx*self.hx,self.cy*self.hz,areaM, heightM, volumeM, largeM, smallM,self.theta
         
+    def curve_to_spline(self,layerName,sliceNum,method="estimate"):
+        """
+        If curve has not knots already, compute knots. Otherwise use old knots
+        for the spline.
+        """
+        sliceZ=sliceNum-1
+        if((not self.splineKnots[sliceZ] is None) and\
+           (layerName in self.splineKnots[sliceZ].keys()) and (not self.splineKnots[sliceZ][layerName] is None)):
+            return self.layers[:,:,sliceZ],self.splineKnots[sliceZ][layerName]
+        
+        layer=self.layers[:,:,sliceZ]
+        h,w=layer.shape
+        samplingRate=10
+        
+        xs=np.arange(0,w,samplingRate)
+        if(layerName=='RPE'):
+            ys,xxs=self.get_RPE_layer(layer[:,xs])
+        elif(layerName=='BM'):
+            ys,xxs=self.get_BM_layer(layer[:,xs])
+        if(method=="const"):
+            tmp=np.zeros((h,len(xs)))
+            tmp[ys,xxs]=1.
+            ys=np.argmax(tmp,axis=0)
+            # Delete samples where no layer exists
+            delInd=np.where(np.max(tmp,axis=0)==0)
+            xs=np.delete(xs,delInd)
+            ys=np.delete(ys,delInd)
+        elif(method=="estimate"):
+            if(layerName=='RPE'):
+                ys,xxs=self.get_RPE_layer(layer)
+            elif(layerName=='BM'):
+                ys,xxs=self.get_BM_layer(layer)
+            argx=np.argsort(xxs)
+            xxs=xxs[argx]
+            ys=ys[argx]
+            diff=xxs[:-1]-xxs[1:]
+            dup=np.where(diff==0)[0]
+            if(len(dup)>0):
+                xxs=np.delete(xxs,dup)
+                ys=np.delete(ys,dup)
+            spl=sc.interpolate.UnivariateSpline(xxs,ys)
+            wsize=len(xxs)
+            for s in np.arange(0,wsize)[::-1]:
+                if(spl.get_residual()<50):
+                    break
+                spl.set_smoothing_factor(s)
+            xs=np.asarray(spl.get_knots()).astype(int)
+            tmp=np.zeros((h,w))
+            tmp[ys,xxs]=1.
+            delInd=np.where(xs>w-1)
+            xs=np.delete(xs,delInd)
+            delInd=np.where(xs<0)
+            xs=np.delete(xs,delInd)
+            xs=np.unique(xs)
+            ys=np.argmax(tmp,axis=0)
+            ys=ys[xs]
+            if(len(xs)>100):
+                
+                return self.curve_to_spline(layerName,sliceNum,method="const")
+        if(self.splineKnots[sliceZ] is None):
+            self.splineKnots[sliceZ]=dict()
+        
+        self.splineKnots[sliceZ][layerName]=[xs,ys]
+        return self.layers[:,:,sliceZ],self.splineKnots[sliceZ][layerName]
+        
+    def spline_to_curve(self,layerName,sliceNum):
+        sliceZ=sliceNum-1
+        
+        if((self.splineKnots[sliceZ] is None) or\
+           (not layerName in self.splineKnots[sliceZ].keys()) or self.splineKnots[sliceZ][layerName] is None):
+            print "Warning: No spline info for layer "+layerName+" at slice "+\
+                  str(sliceZ+1)+" given!"
+            return None,None
+        xs,ys=self.splineKnots[sliceZ][layerName]
+        for deg in range(1,4)[::-1]:
+            try:
+                tck=sc.interpolate.splrep(xs,ys,k=deg)
+                break
+            except:
+                print "Warning: No spline of degree ", deg, " can be produced!"
+        ys=sc.interpolate.splev(np.arange(0,self.layers.shape[1]),tck)
+        rpeImg,bmImg=self.decompose_into_RPE_BM_images(self.layers[:,:,sliceZ])
+        newCurve=np.zeros(rpeImg.shape)
+        h,w=self.layers[:,:,sliceZ].shape
+        newCurve[np.rint(ys).astype(int),np.arange(0,w)]=255.
+        prevLoc=-1
+        # Fill Gaps
+        for i in range(newCurve.shape[1]):
+            yloc=np.where(newCurve[:,i])
+            
+            if(i==0):
+                if(len(yloc)>0):
+                    prevLoc=yloc[0][0]
+                continue
+            if(prevLoc!=-1):
+                if(prevLoc<yloc[0][0]):
+                    newCurve[prevLoc+1:yloc[0][0],i]=255.
+                else:
+                    newCurve[yloc[0][0]:prevLoc,i]=255.
+            if(len(yloc)>0):
+                prevLoc=yloc[0][0]          
+            elif(len(yloc)==0):
+                prevLoc=-1
+        if(layerName=='RPE'):
+            layer=self.combine_RPE_BM_images(newCurve,bmImg)
+        elif(layerName=='BM'):
+            layer=self.combine_RPE_BM_images(rpeImg,newCurve)
+        self.layers[:,:,sliceZ]=np.copy(layer)
+        return layer,self.splineKnots[sliceZ][layerName]
+    
+    def spline_update_using_info(self,info):
+        sliceNumZ=info['sliceNum']-1
+        layerName=info['layerName']
+        if(not info['layer'] is None):
+            self.layers[:,:,sliceNumZ]=info['layer']
+            self.splineKnots[sliceNumZ][layerName]=info['knots']
+            self.layerSegmenter.set_uncertainties(info['uncertainties'],sliceNumZ)
+            self.controller.set_uncertainties(info['uncertainties'],sliceNumZ)
+            
+    def spline_update_using_data(self,layer,knots,info):
+        sliceNumZ=info['sliceNum']-1
+        layerName=info['layerName']
+        if(not layer is None):
+            self.layers[:,:,sliceNumZ]=layer
+            self.splineKnots[sliceNumZ][layerName]=knots
+            self.editedLayers[sliceNumZ][layerName]=info['prevStatus']
+            self.layerSegmenter.set_uncertainties(info['uncertainties'],sliceNumZ)
+            self.controller.set_uncertainties(info['uncertainties'],sliceNumZ)
+            
+    def get_spline_knots(self,layerName,sliceZ):
+        if((self.splineKnots[sliceZ] is None) or\
+           (not layerName in self.splineKnots[sliceZ].keys())):
+               return None
+        return self.splineKnots[sliceZ][layerName]
+        
+    def add_spline_knot(self,y,x,layerName,sliceZ):
+        if(x<0 or x>=self.width or y<0 or y>=self.height):
+            return
+        knots=self.get_spline_knots(layerName,sliceZ)
+        if(knots is None):
+            return 
+        knotsx,knotsy=knots
+        # Check if point is already exists
+        if(x in knotsx):
+            knotsy[np.where(knotsx==x)]=y # Update location
+        # Otherwise add as new knot
+        else:
+            knotsx=np.append(knotsx,x)
+            knotsy=np.append(knotsy,y)
+            sortInd=np.argsort(knotsx)
+            sortedx=knotsx[sortInd]
+            sortedy=knotsy[sortInd]
+            knotsx=sortedx
+            knotsy=sortedy
+        del self.splineKnots[sliceZ][layerName]
+        self.splineKnots[sliceZ][layerName]=[knotsx,knotsy]
+    
+    def delete_spline_knot(self,y,x,layerName,sliceZ):
+        if(x<0 or x>=self.width or y<0 or y>=self.height):
+            return
+        knots=self.get_spline_knots(layerName,sliceZ)
+        if(knots is None):
+            return 
+        knotsx,knotsy=knots
+        
+        mindist=1000
+        minx=x
+        for i in [-1,0,1]:
+            if(x+i in knotsx):
+                ind=np.where(knotsx==(x+i))
+                for j in [-1,0,1]:
+                    if((y+j)==knotsy[ind]):
+                        dist=np.sqrt(i**2+j**2)
+                        if(dist<mindist):
+                            minx=x+i
+                            mindist=dist
+        
+        # Check if point exists
+        ind=np.where(knotsx==minx)
+        knotsx=np.delete(knotsx,ind)
+        knotsy=np.delete(knotsy,ind)
+        del self.splineKnots[sliceZ][layerName]
+        self.splineKnots[sliceZ][layerName]=[knotsx,knotsy]
+    
+        
+    def is_knot(self,y,x,layerName,sliceZ):   
+        if(x<0 or x>=self.width or y<0 or y>=self.height):
+            return False
+        knots=self.get_spline_knots(layerName,sliceZ)
+        if(knots is None):
+            return False
+        knotsx,knotsy=knots
+        # Check 1 pixel neighborhood
+        for i in [-1,0,1]:
+            if(x+i in knotsx):
+                ind=np.where(knotsx==(x+i))
+                for j in [-1,0,1]:
+                    if((y+j)==knotsy[ind]):
+                        return True
+        return False
+    
+    def get_closest_knot(self,y,x,layerName,sliceZ):
+        if(x<0 or x>=self.width or y<0 or y>=self.height):
+            return False
+        knots=self.get_spline_knots(layerName,sliceZ)
+        if(knots is None):
+            return False
+        knotsx,knotsy=knots
+        # Check neighborhood for candidates
+        mindist=1000
+        minx=x
+        miny=y
+        for i in [-1,0,1]:
+            if(x+i in knotsx):
+                ind=np.where(knotsx==(x+i))
+                for j in [-1,0,1]:
+                    if((y+j)==knotsy[ind]):
+                        dist=np.sqrt(i**2+j**2)
+                        if(dist<mindist):
+                            minx=x+i
+                            miny=y+j
+                            mindist=dist
+        return minx,miny
+    def update_knot_position(self,y,x,oldy,oldx,layerName,sliceZ):
+        if(x<0 or x>=self.width or y<0 or y>=self.height):
+            return
+        knots=self.get_spline_knots(layerName,sliceZ)
+        if(knots is None):
+            return 
+        knotsx,knotsy=knots
+        if(x in knotsx):
+            # If new pos concides with another knot, keep old xpos, only update
+            # ypos
+            knotsy[np.where(knotsx==oldx)]=y # Update location
+            
+        else:
+            # Delete the old knot
+            self.delete_spline_knot(oldy,oldx,layerName,sliceZ)
+            # Add new knot
+            self.add_spline_knot(y,x,layerName,sliceZ)        
+
     def quantify_drusen(self):
         self.controller.show_progress_bar()
         
@@ -1834,22 +2522,26 @@ class OCT:
         return cx, cy, area, height, volume, largeR, smallR, theta
         
     def pen_or_line_undo(self,sliceNum,info,layerName):
-            
+        
         sliceNumZ=sliceNum-1
+        
         if(sliceNumZ in self.certainSlices):
             self.certainSlices.remove(sliceNumZ)
-        
+        self.editedLayers[sliceNumZ][layerName]=info['prevStatus']
+            
         self.layerSegmenter.set_uncertainties(info['uncertainties'],sliceNumZ)
         self.controller.set_uncertainties(info['uncertainties'],sliceNumZ)
-
+        
     def pen_or_line_redo(self,sliceNum,layerName):
+        
         info=dict()
         sliceNumZ=sliceNum-1
+        info['prevStatus']=None
+        info['prevStatus']=self.editedLayers[sliceNumZ][layerName]
         self.certainSlices.append(sliceNumZ)
-        
+        self.editedLayers[sliceNumZ][layerName]=True
         
         info['uncertainties']=self.layerSegmenter.get_uncertainties(sliceNumZ)
-        
         return info
         
     def create_directory(self,path):

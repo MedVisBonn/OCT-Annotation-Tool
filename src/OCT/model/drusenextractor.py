@@ -37,10 +37,17 @@ class DrusenSeg:
             vn = np.zeros((l.shape[1]))
             vn[x_n] = y_n
             mask=np.zeros(l.shape)
-            mask[y,x]=1
-            mask[y_n,x_n]=2
-            self.drusen[:,:,i]=self.find_area_btw_RPE_normal_RPE( mask )
-       
+            try:
+                h,w=l.shape
+                y[np.where(y>=h)]=h-1
+                x[np.where(x>=w)]=w-1
+                y_n[np.where(y_n>=h)]=h-1
+                x_n[np.where(x_n>=w)]=w-1
+                mask[y,x]=1
+                mask[y_n,x_n]=2
+                self.drusen[:,:,i]=self.find_area_btw_RPE_normal_RPE( mask )
+            except:
+                print "Error in get_drusen_seg_polyfit function"
         return self.drusen
         
     def get_RPE_layer(self,img):
