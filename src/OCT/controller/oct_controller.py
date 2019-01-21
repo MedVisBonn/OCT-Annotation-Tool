@@ -50,6 +50,7 @@ class OCTController:
         self.linkViewers=False
         self.activaViewerSet=set()
         self.enfaceDrusenController=None
+        self.showSuggestedSegmentation=None
         
         self.scanCoeff=0.0
         self.layerCoeff=0.0
@@ -58,6 +59,7 @@ class OCTController:
         self.drusenEnfaceCoeff=1.0
         self.all_threshold=1
         self.max_threshold=2
+        self.uncertaintyProjectionID=0
         
         self.drusenEditted=False
         self.layerEditted=False
@@ -69,6 +71,12 @@ class OCTController:
         
         self.editBM=False
         self.editRPE=False
+        
+        self.editGA=False
+        self.editNGA=False
+
+        self.evaluateLayers=False
+        self.evaluateDrusen=False        
         
         self.logFile=os.path.join(os.path.realpath(os.path.abspath(os.path.\
                      split(inspect.getfile( inspect.currentframe() ))[0])),\
@@ -82,7 +90,6 @@ class OCTController:
         self.mainWindowUi.oct_controller=self
         
         self.enfaceDrusenViewOpen=False
-        self.mainWindow
         self.lastScanPath=''
         
         self.lineS=[]
@@ -91,7 +98,6 @@ class OCTController:
         self.linePrevValues=[]
         self.lineRedoValues=[]
         self.seenPoints=set()
-        
         self.app=app
         
     def delete_previous(self):
@@ -107,12 +113,14 @@ class OCTController:
         self.currentEnfaceDrusenNumber=1
         self.linkViewers=False
         self.activaViewerSet=set()
+        self.showSuggestedSegmentation=None
         
         self.scanCoeff=0.0
         self.layerCoeff=0.0
         self.drusenCoeff=1.0
         self.enfaceCoeff=0.0
         self.drusenEnfaceCoeff=1.0
+        self.uncertaintyProjectionID=0
         
         self.all_threshold=1
         self.max_threshold=2
@@ -130,6 +138,12 @@ class OCTController:
         
         self.editBM=False
         self.editRPE=False
+        
+        self.editGA=False
+        self.editNGA=False
+        
+        self.evaluateLayers=False
+        self.evaluateDrusen=False
         
         if(not self.enfaceDrusenController is None):
             del self.enfaceDrusenController
@@ -149,14 +163,24 @@ class OCTController:
         Opens an OCT volume.
         """
         debug=False
+        evaluateLayers=False
+        evaluateDrusen=False
         if(debug):
-            scanPath="..."
+            if(evaluateLayers):
+                scanPath="/home/gorgi/Desktop/extraCodeDataForEditor/220814_145"
+            elif(evaluateDrusen):
+                scanPath="/home/gorgi/Desktop/Data/Data/210715_145"
+            else:
+                scanPath="/home/gorgi/Desktop/OCT-UnderExtention/OCT/dummyData/210715_145"
             self.lastScanPath=scanPath
         else:
             scanPath=self.mainWindowUi.get_scan_path(self.lastScanPath)
             self.lastScanPath=scanPath
         if(scanPath!=''):
             self.delete_previous()
+            self.evaluateLayers=evaluateLayers
+            self.evaluateDrusen=evaluateDrusen
+            self.oct.set_evaluation_schemes(evaluateLayers,evaluateDrusen)
             self.oct.set_scan_path(scanPath)
             self.oct.read_scan_from(scanPath)
             npimg=self.oct.get_scan()[:,:,self.currentScanNumber-1]
@@ -166,7 +190,6 @@ class OCTController:
             return 0
         else:
             return 1  
-            
             
     def get_current_active_window(self):
         return self.mainWindowUi.get_current_active_window()
@@ -208,9 +231,21 @@ class OCTController:
         self.activaViewerSet.add('layerViewer')
         if(probmapsExist):
             self.visualize_uncertainties()
+            self.showSuggestedSegmentation=dict()
+            self.showSuggestedSegmentation['RPE']=np.ones((layers.shape[2]),dtype=bool)
+            self.showSuggestedSegmentation['BM']=np.ones((layers.shape[2]),dtype=bool)
+            self.mainWindowUi.set_edited_layers(self.oct.get_edited_layers())
             
     def get_hrf_bounding_boxes(self):
         return self.mainWindowUi.get_hrf_bounding_boxes()
+        
+    def set_slice_edited(self,sliceNum,layerName,status):
+        self.oct.set_slice_edited(sliceNum,layerName,status)
+        self.mainWindowUi.slice_edited(sliceNum,'layerViewer',layerName)
+        self.mainWindowUi.set_edited_layers(self.oct.get_edited_layers())
+        
+    def get_nga_bounding_boxes(self):
+        return self.mainWindowUi.get_nga_bounding_boxes()
         
     def get_enface_bounding_boxes(self):
         return self.mainWindowUi.get_enface_bounding_boxes() 
@@ -236,12 +271,17 @@ class OCTController:
         Read and visualized GA segmentation maps.
         """
         gas=self.oct.get_gas()
+        ngas,ngaBBox=self.oct.get_ngas()
         self.currentGANumber=1
-        npimg=gas[:,:,self.currentGANumber-1]
+        gasSlice=gas[:,:,self.currentGANumber-1]
+        ngasSlice=ngas[:,:,self.currentGANumber-1]
+        npimg=self.oct.combine_GA_NGA_images(gasSlice,ngasSlice)
         self.mainWindowUi.show_viewer(npimg,'gaViewer',self.oct.numSlices)
         npimg=self.oct.get_scan()[:,:,self.currentGANumber-1]
         overlay=np.copy(npimg)
         self.mainWindowUi.add_overlay([overlay],'gaViewer',self.scanCoeff)
+        self.mainWindowUi.set_nga_bbox(ngaBBox)
+        self.slice_value_changed(self.currentGANumber,'gaViewer',furtherUpdate=False)
         self.activaViewerSet.add('gaViewer')
         
     def get_drusen(self):
@@ -263,9 +303,16 @@ class OCTController:
         enface,enfaceBBox=self.oct.get_enface()
         self.mainWindowUi.show_viewer(enface,'enfaceViewer',self.oct.numSlices) 
         self.mainWindowUi.set_enface_bbox(enfaceBBox)
+        overlay=self.oct.get_uncer_map('RPE','Entropy')
+        self.mainWindowUi.add_overlay([overlay],'enfaceViewer',self.enfaceCoeff)
         self.activaViewerSet.add('enfaceViewer')
         self.slice_value_changed(self.currentDrusenNumber,'enfaceViewer',furtherUpdate=False,stop=False)
-   
+        
+        probmapsExist=self.oct.probmaps_does_exist()
+        
+        if(probmapsExist):
+            self.visualize_uncertainties()
+            self.mainWindowUi.set_edited_layers(self.oct.get_edited_layers())
     def get_enface_drusen(self):
         """
         Compute the enface projection of drusen maps and visualize it.
@@ -303,6 +350,12 @@ class OCTController:
     def get_edit_bm(self):
         return self.editBM
         
+    def get_edit_ga(self):
+        return self.editGA
+    
+    def get_edit_nga(self):
+        return self.editNGA
+        
     def get_manual_markers(self):
         return self.mainWindowUi.get_manual_markers()
      
@@ -315,6 +368,9 @@ class OCTController:
     def get_enface_height(self):
         en,bb=self.oct.get_enface()
         return en.shape[0]
+        
+    def get_smoothness(self):
+        return self.mainWindowUi.get_smoothness()
         
     def get_RPE_location(self,segImg):
         """
@@ -334,9 +390,6 @@ class OCTController:
         else:
             y, x = np.where(tmp==255)
         return y, x
-    
-    
-    
     
     def closing(self,callerName):
         """
@@ -403,7 +456,9 @@ class OCTController:
             self.hrfEditted=False
             self.mainWindowUi.saved_changes()
         if(self.gaEditted):
+            self.oct.set_nga_bounding_boxes(self.get_nga_bounding_boxes())
             self.oct.save_gas(self.lastScanPath)
+            self.oct.save_ngas(self.lastScanPath)
             self.gaEditted=False
             self.mainWindowUi.saved_changes()
         if(self.enfaceEditted):
@@ -411,7 +466,6 @@ class OCTController:
             self.oct.save_enface(self.lastScanPath)
             self.enfaceEditted=False
             self.mainWindowUi.saved_changes()   
-        
             
     def save_as(self):
         dirName=self.mainWindowUi.get_save_path(self.lastScanPath,'drusen',self.oct.saveFormat)
@@ -439,8 +493,9 @@ class OCTController:
         if(self.gaEditted):
             self.oct.set_scan_path(self.lastScanPath)
             self.oct.save_gas(self.lastScanPath)
+            self.oct.save_ngas(self.lastScanPath)
             self.gaEditted=False
-            self.mainWindowUi.saved_changes()  
+            self.mainWindowUi.saved_changes()   
             
         if(self.enfaceEditted):
             self.oct.set_enface_bounding_boxes(self.get_enface_bounding_boxes())
@@ -467,6 +522,16 @@ class OCTController:
             pass            
         elif(callerName=='enfaceDrusenViewer'):
             pass
+        
+    def convert_uncertainty_id_to_names(self,uncertaintyProjectionID):
+        if(uncertaintyProjectionID==1):
+            return 'RPE', 'Probability'
+        elif(uncertaintyProjectionID==2):
+            return 'RPE', 'Entropy'
+        elif(uncertaintyProjectionID==3):
+            return 'BM', 'Probability'
+        elif(uncertaintyProjectionID==4):
+            return 'BM', 'Entropy'
             
     def slice_value_changed(self,value,callerName,furtherUpdate=True,stop=False):
         """
@@ -476,6 +541,11 @@ class OCTController:
         furtherUpdate: Update other viewers accordingly
         stop: Avoid updating further related views
         """
+        if(self.evaluateLayers and callerName=='layerViewer'):
+            self.update_distance(value-1)
+        if(self.evaluateDrusen and callerName=='drusenViewer'):
+            self.update_distance_drusen(value-1)
+            
         images=[]
         coeffs=[]
         if(callerName=='scanViewer'):
@@ -495,21 +565,28 @@ class OCTController:
             self.currentGANumber=value
             s=self.oct.get_scan()[:,:,self.currentGANumber-1]
             l=self.oct.get_gas()[:,:,self.currentGANumber-1]
-            images=[s,l]
+            l2=self.oct.get_ngas()[0][:,:,self.currentGANumber-1]
+            res=self.oct.combine_GA_NGA_images(l,l2)
+            images=[s,res]
             coeffs=[self.scanCoeff,1.-self.scanCoeff]
              
         elif(callerName=='layerViewer'):
             self.currentLayerNumber=value
+            self.currentEnfaceNumber=value
             s=self.oct.get_scan()[:,:,self.currentLayerNumber-1]
             l=self.oct.get_layers()[:,:,self.currentLayerNumber-1]
-            images=[s,l]
-            coeffs=[self.scanCoeff,1.-self.scanCoeff]
-            if((not stop) and 'drusenViewer' in self.activaViewerSet):
-                self.slice_value_changed(value,'drusenViewer',furtherUpdate=False,stop=True)
-                self.mainWindowUi.set_spinbox_value(value,'drusenViewer')
-   
-        elif(callerName=='drusenViewer'):
             
+            unc=self.convert_uncertainty_id_to_names(self.uncertaintyProjectionID)
+            uncType= 'Entropy' if unc is None else unc[1]
+            p=self.oct.get_probable_layers(self.currentLayerNumber-1,self.get_smoothness(),uncType,self.showSuggestedSegmentation)
+            
+            images=[s,l,p]
+            coeffs=[self.scanCoeff,1.-self.scanCoeff]
+            if((not stop) and 'enfaceViewer' in self.activaViewerSet):
+                self.slice_value_changed(value,'enfaceViewer',furtherUpdate=False,stop=True)
+                self.mainWindowUi.set_spinbox_value(value,'enfaceViewer')
+                
+        elif(callerName=='drusenViewer'):
             self.currentDrusenNumber=value
             self.currentEnfaceDrusenNumber=value
             self.currentEnfaceNumber=value
@@ -528,9 +605,20 @@ class OCTController:
             self.currentDrusenNumber=value
             self.currentEnfaceDrusenNumber=value
             self.currentEnfaceNumber=value
+            self.currentLayerNumber=value
             npimg,bbox=self.oct.get_enface()
-            images=[npimg]
-            coeffs=[1.0]
+            if(self.uncertaintyProjectionID==0):
+                uncer=None
+            else:
+                layTyp,uncTyp=self.convert_uncertainty_id_to_names(self.uncertaintyProjectionID)
+                uncer=self.oct.get_uncer_map(layTyp,uncTyp) # 'RPE','Entropy'
+            images=[npimg,uncer]
+            coeffs=[self.enfaceCoeff,1.-self.enfaceCoeff]
+            if(uncer is None):
+                coeffs[0]=1.0
+            if((not stop) and 'layerViewer' in self.activaViewerSet):
+                self.slice_value_changed(value,'layerViewer',furtherUpdate=False,stop=True)
+                self.mainWindowUi.set_spinbox_value(value,'layerViewer')
             if((not stop) and 'enfaceDrusenViewer' in self.activaViewerSet):
                 self.slice_value_changed(value,'enfaceDrusenViewer',furtherUpdate=False,stop=True)
                 self.mainWindowUi.set_spinbox_value(value,'enfaceDrusenViewer')
@@ -558,9 +646,24 @@ class OCTController:
             
         if(furtherUpdate):
             self.update_linked_viewers(value)  
-                
+            
+    def slice_edited(self,sliceNum,layerName,status):
+        self.oct.set_slice_edited(sliceNum,layerName,status)
+        self.mainWindowUi.set_edited_layers(self.oct.get_edited_layers())
+        
+    def get_enface_uncertainty_overlay(self):
+        if(self.uncertaintyProjectionID==0):
+             return None
+        else:
+             return self.convert_uncertainty_id_to_names(self.uncertaintyProjectionID)
+    def update_layer_viewer(self,viewerName):
+        self.slice_value_changed(self.currentLayerNumber,callerName=viewerName,furtherUpdate=False)
+        
     def update_enface_status(self):
         self.mainWindowUi.content_changed('enfaceViewer')
+        
+    def update_ga_status(self):
+        self.mainWindowUi.content_changed('gaViewer')
       
     def update_HRF_status(self,index,status,updateCheckBox=False):
         """
@@ -598,6 +701,23 @@ class OCTController:
         self.mainWindowUi.content_changed('gaViewer')
         return image,xs,ys
         
+    def update_nga_mask_in_region(self,image,x1,x2,color):
+        """
+        Update nascent GA segmentation map in a selection region starting from x1
+        to x2.
+        """
+        h,w=image.shape
+        tmp=np.copy(image)
+        s=max(0,min(x1,x2))
+        e=min(w-1,max(x1,x2))
+        
+        image[:,s:e+1]=color[0]
+        xs,ys=np.where(tmp!=image)
+        self.oct.set_nga(s,e,color[0],self.currentGANumber)
+        self.slice_value_changed(self.currentGANumber,callerName='gaViewer',furtherUpdate=False)
+        self.mainWindowUi.content_changed('gaViewer')
+        return image,xs,ys
+    
     def update_cost_image_redo(self,x,y,smoothness,layerName,sliceNum,callerName):
         """
         When CSP tool is used (x,y are the location of the selected point),
@@ -605,6 +725,7 @@ class OCTController:
         or pressing the redo button.
         """
         info=dict()
+       
         if(layerName=='RPE'):
             info=self.oct.update_cost_rpe(x,y,sliceNum-1,smoothness)
             self.mainWindowUi.content_changed('layerViewer')
@@ -636,13 +757,56 @@ class OCTController:
         sliceNum=self.currentLayerNumber
         self.mainWindowUi.draw_cost_point_command(i,j,smoothness,currLayer,callerName,sliceNum)
         
+    def update_layer_spline_redo(self,layer,knots,currLayer,sliceNum):
+        info=dict()
+        if(not knots is None):
+            self.oct.set_spline_knots_layer(knots,sliceNum-1,currLayer)
+            self.oct.set_layer(layer,sliceNum-1)
+        layer,knots=self.oct.spline_to_curve(currLayer,sliceNum)
+        info['layer']=layer
+        info['sliceNum']=sliceNum
+        info['knots']=knots
+        info['layerName']=currLayer
+        info['prevStatus']=self.oct.get_edited_layers()[sliceNum-1][currLayer]
+        info['uncertainties']=self.oct.layerSegmenter.get_uncertainties(sliceNum-1)
+        self.oct.set_slice_edited(sliceNum,currLayer,True)
+        return info
+    
+    def update_layer_spline_undo(self,layer,knots,info):
+        self.oct.spline_update_using_data(layer,knots,info)
+        self.slice_value_changed(info['sliceNum'],'layerViewer',furtherUpdate=False)        
+        
     def update_tool_box(self):
         self.mainWindowUi.update_tool_box()
     
     def update_distance(self,sliceNumN):
+        """
+        Used for evaluation wrt to distance btw corrected layer and GT.
+        """
         oldOveralDistance,oldDistances=self.oct.get_distances()
         overallDist,dist=self.oct.update_distance(sliceNumN)
-                
+        for i in range(len(dist)):
+            if(dist[i]>=12):
+                print i+1,':',dist[i]
+        print "----------------------"
+        print sliceNumN+1,':',dist[sliceNumN]
+        print overallDist,overallDist<=5
+        print "\n"
+        
+    def update_distance_drusen(self,sliceNumN):
+        """
+        Used for evaluation wrt to IoU distance btw corrected drusen and GT.
+        """
+        oldOveralDistance,oldDistances=self.oct.get_distances_drusen()
+        overallDist,dist=self.oct.update_distance_drusen(sliceNumN)
+        for i in range(len(dist)):
+            if(58>=i>=48 and dist[i]<0.8):
+                print i+1,':',dist[i]
+        print "----------------------"
+        print sliceNumN+1,':',dist[sliceNumN]
+        print np.average(dist[48:59]),np.average(dist[48:59])>=(0.85)
+        print "\n"
+        
     def set_link_viewers(self,linkState):
         self.linkViewers=linkState
         
@@ -650,6 +814,7 @@ class OCTController:
         """
         Set the slice number for the three related viewers.
         """
+        self.currentLayerNumber=sliceNum
         self.currentDrusenNumber=sliceNum
         self.currentEnfaceNumber=sliceNum
         self.currentEnfaceDrusenNumber=sliceNum
@@ -682,11 +847,23 @@ class OCTController:
         self.editRPE=False
                
     def set_editing_layer(self,index):
+        self.unset_editing_layer()
         if(index==0):
             self.editRPE=True
         elif(index==1):
             self.editBM=True
-        
+    
+    def unset_editing_ga(self):
+        self.editGA=False
+        self.editNGA=False
+               
+    def set_editing_ga(self,index):
+        self.unset_editing_ga()
+        if(index==5):
+            self.editGA=True
+        elif(index==6):
+            self.editNGA=True    
+    
     def set_up_manual_marker_selection(self):
         self.mainWindowUi.set_up_manual_marker_selection()
         
@@ -721,9 +898,10 @@ class OCTController:
             self.slice_value_changed(self.currentDrusenNumber,callerName='drusenViewer')
         elif(edittingIndex==3):
             self.slice_value_changed(self.currentEnfaceDrusenNumber,callerName='enfaceDrusenViewer')
+            self.slice_value_changed(self.currentEnfaceNumber,callerName='enfaceViewer')
         elif(edittingIndex==4):
             self.slice_value_changed(self.currentHRFNumber,callerName='hrfViewer')           
-        elif(edittingIndex==5):
+        elif(edittingIndex==5 or edittingIndex==6):
             self.slice_value_changed(self.currentGANumber,callerName='gaViewer')
            
     def compute_overlayed_images(self,images,coeffs): 
@@ -791,7 +969,7 @@ class OCTController:
             reg=overImg[topLeftY:bottomRightY,topLeftX:bottomRightX]
             tmp=np.copy(image[topLeftY:bottomRightY,topLeftX:bottomRightX])
      
-#           Otsu
+            # Otsu
             if(len(np.unique(reg))>0):
                 t=threshold_otsu(reg)
                 reg=(reg>t).astype(int)*255
@@ -851,10 +1029,14 @@ class OCTController:
         reg=image[topLeftY:bottomRightY,topLeftX:bottomRightX]
         tmp=np.copy(reg)
         layerReg=np.copy(overImg[topLeftY:bottomRightY,topLeftX:bottomRightX])
-        y,x=self.get_RPE_location(layerReg)
+        y,x=self.oct.get_RPE_location(layerReg)
+        ybm,xbm=self.oct.get_BM_location(layerReg)
         druReg=np.copy(layerReg)
+        bmLayerReg=np.empty(layerReg.shape)
         layerReg.fill(0.)
         layerReg[y,x]=1.
+        bmLayerReg.fill(0.)
+        bmLayerReg[ybm,xbm]=1.
         try:
             if(len(y)>0):
                 for i in range(len(y)):                
@@ -872,11 +1054,25 @@ class OCTController:
                     eX=max(minXs[0])
                     sY=np.where(layerReg[:,sX]==1)[0][0]
                     eY=np.where(layerReg[:,eX]==1)[0][0]
-                    bottomLine=list(bresenham(int(sX),int(sY),int(eX),int(eY)))
-                    for i in range(len(bottomLine)):
-                        bx,by=bottomLine[i]
-                        ry=np.where(layerReg[:,bx]==1)[0][0]
-                        reg[ry:by+1,bx]=255
+                    # Use straight line
+                    if(False):
+                        bottomLine=list(bresenham(int(sX),int(sY),int(eX),int(eY)))
+                        
+                        for i in range(len(bottomLine)):
+                            bx,by=bottomLine[i]
+                            ry=np.where(layerReg[:,bx]==1)[0][0]
+                            reg[ry:by+1,bx]=255
+                    else:
+                        sBmY=np.where(bmLayerReg[:,sX]==1)[0][0]
+                        eBmY=np.where(bmLayerReg[:,eX]==1)[0][0]
+                        ds=sBmY-sY
+                        de=eBmY-eY
+                        for i in range(eX-sX+1):
+                            ry=np.where(layerReg[:,i]==1)[0][0]
+                            by=np.where(bmLayerReg[:,i]==1)[0][0]
+                            alpha=i/float(eX-sX) if eX-sX>0 else 1.
+                            bottomY=int(by-((alpha*de)+((1.-alpha)*ds)))
+                            reg[ry:bottomY+1,i]=255
         except:
             print "Error in extract_drusen_in_region"
         if(callerName=='fromEnfaceDrusen'):
@@ -904,7 +1100,8 @@ class OCTController:
         yns=yns+topLeftX
         if(not undoRedo):
                 if((len(xs)>0 and len(ys)>0)or(len(xns)>0 and len(yns)>0)):
-                    self.mainWindowUi.draw_extract_command(xs,ys,zs,xns,yns,zns,[255,0,255],callerName,self.currentDrusenNumber)
+                    self.mainWindowUi.draw_extract_command(xs,ys,zs,xns,yns,\
+                    zns,[255,0,255],callerName,self.currentDrusenNumber)
         return image
         
     def draw_point(self,image,x,y,color,sliceNum,callerName='',undoRedo=False):
@@ -990,8 +1187,8 @@ class OCTController:
         When uncertainty visualization is trigerred, use this function to set
         the views.
         """
-        ent,prob=self.oct.get_uncertainties_per_bscan()
-        self.mainWindowUi.set_uncertainties_per_bscan(ent,prob)
+        ent,prob,entCol,probCol=self.oct.get_uncertainties_per_bscan()
+        self.mainWindowUi.set_uncertainties_per_bscan(ent,prob,entCol,probCol)
         
     def compute_probability_maps(self):
         """
@@ -1135,6 +1332,8 @@ class OCTController:
         viewers. For the GA viewer, colorize the whole selected region from
         xx1 to xx2.
         """
+        
+        image=np.copy(image)
         h,w=image.shape
         x1=xx1
         x2=xx2
@@ -1146,18 +1345,31 @@ class OCTController:
         posX=[]
         prevValues=[]
         redoValues=[]
+        
         if(callerName=='gaViewer'):
+            if(self.editGA):
+                image=self.oct.get_gas()[:,:,self.currentGANumber-1]
+            if(self.editNGA):
+                image=self.oct.get_ngas()[0][:,:,self.currentGANumber-1]
             x1=max(0,min(xx1,xx2))
             x2=min(w-1,max(xx1,xx2))
             y1=max(0,min(yy1,yy2))
             y2=min(h-1,max(yy1,yy2))
-            newImg,xs,ys= self.update_ga_mask_in_region(image,x1,x2,color)
-            if(not undoRedo):
-                if(len(xs)>0 and len(ys)>0):
-                    if(callerName=='gaViewer'):
-                        self.mainWindowUi.draw_region_command(xs,ys,color,\
-                           callerName,self.currentGANumber)
-            
+            gaType='GA' if self.editGA else 'NGA'
+            if(self.editGA):
+                newImg,xs,ys= self.update_ga_mask_in_region(image,x1,x2,color)
+                if(not undoRedo):
+                    if(len(xs)>0 and len(ys)>0):
+                        if(callerName=='gaViewer'):
+                            self.mainWindowUi.draw_region_command(xs,ys,color,\
+                               callerName,self.currentGANumber,gaType)
+            if(self.editNGA):
+                newImg,xs,ys= self.update_nga_mask_in_region(image,x1,x2,color)
+                if(not undoRedo):
+                    if(len(xs)>0 and len(ys)>0):
+                        if(callerName=='gaViewer'):
+                            self.mainWindowUi.draw_region_command(xs,ys,color,\
+                               callerName,self.currentGANumber,gaType)
         if(callerName=='layerViewer'):
             rpeImg,bmImg=self.oct.decompose_into_RPE_BM_images(image)
             currentDrawingColor={}
@@ -1256,19 +1468,29 @@ class OCTController:
                 self.lineRedoValues.append(redoValues)
             
         if(not undoRedo):
+            layerName=''
+            if(self.editBM):
+                layerName='BM'
+            elif(self.editRPE):
+                layerName='RPE'
             if(len(s)>0 and len(y)>0):
                 if(callerName=='enfaceDrusenViewer' or callerName=='drusenViewer'):
                     self.mainWindowUi.draw_line_command(x1,y1,x2,y2,color,\
                              callerName,self.currentDrusenNumber,posX,y,s,\
-                             prevValues,redoValues)
+                             prevValues,redoValues,layerName)
                 elif(callerName=='hrfViewer'):
                     self.mainWindowUi.draw_line_command(x1,y1,x2,y2,color,\
                              callerName,self.currentHRFNumber,posX,y,s,\
-                             prevValues,redoValues)
+                             prevValues,redoValues,layerName)
                 elif(callerName=='layerViewer'):
                     self.mainWindowUi.draw_line_command(x1,y1,x2,y2,color,\
                              callerName,self.currentLayerNumber,posX,y,s,\
-                             prevValues,redoValues)
+                             prevValues,redoValues,layerName)
+                             
+        if(callerName=='gaViewer'):
+            ga=self.oct.get_gas()[:,:,self.currentGANumber-1]
+            nga=self.oct.get_ngas()[0][:,:,self.currentGANumber-1]
+            image=self.oct.combine_GA_NGA_images(ga,nga)
         return image
         
     def finished_drawing_with_pen(self,color,callerName=''):
@@ -1282,15 +1504,20 @@ class OCTController:
         prevValues=self.linePrevValues
         redoValues=self.lineRedoValues
         if(len(y)>0):
+            layerName=''
+            if(self.editBM):
+                layerName='BM'
+            elif(self.editRPE):
+                layerName='RPE'
             if(callerName=='enfaceDrusenViewer' or callerName=='drusenViewer'):
                 self.mainWindowUi.draw_curve_command(x,y,s,color,callerName,\
-                                self.currentDrusenNumber,prevValues,redoValues)
+                                self.currentDrusenNumber,prevValues,redoValues,layerName)
             elif(callerName=='hrfViewer'):
                 self.mainWindowUi.draw_curve_command(x,y,s,color,callerName,\
-                                   self.currentHRFNumber,prevValues,redoValues)
+                                   self.currentHRFNumber,prevValues,redoValues,layerName)
             elif(callerName=='layerViewer'):
                 self.mainWindowUi.draw_curve_command(x,y,s,color,callerName,\
-                                 self.currentLayerNumber,prevValues,redoValues)
+                                 self.currentLayerNumber,prevValues,redoValues,layerName)
         self.lineS=[]
         self.lineY=[]
         self.lineX=[]
@@ -1364,6 +1591,7 @@ class OCTController:
         """
         tmp=np.copy(image)
         rpeIndicator=np.cumsum(overImg,axis=0)
+        paintUntilRPEFlag=True
         if(callerName=='enfaceDrusenViewer' and color[0]!=0):
             pass # Do nothing
         else:
@@ -1381,8 +1609,13 @@ class OCTController:
             # Check if this point is over RPE layer, then stop there
             layerV=overImg[min(x+1,h-1),y] 
            
-            if(vxy!=color[0] and not self.oct.is_rpe(layerV)):
-                toPaint.add((x,y))
+            if(paintUntilRPEFlag):
+                if(vxy!=color[0] and not self.oct.is_rpe(layerV)):
+                    toPaint.add((x,y))
+            else:
+                rpeIndicator.fill(1.)
+                if(vxy!=color[0]):
+                    toPaint.add((x,y))
             l=len(toPaint)
             while(l>0):
                 x,y=toPaint.pop()
@@ -1627,11 +1860,9 @@ class OCTController:
         if(not self.enfaceDrusenController is None):
             sliceNum=min(sliceNum,self.oct.numSlices)
             self.enfaceDrusenController.select_component(sliceNum,position)
-            
         if(callerName=='enfaceDrusenViewer' or callerName=='enfaceViewer'):
              self.slice_value_changed(sliceNum,'enfaceDrusenViewer',furtherUpdate=False)
              self.set_drusen_slice_number(sliceNum)
-        
         self.mainWindowUi.set_grab_position(position,callerName)
          
     def numpy_to_pixmap(self,image):   
@@ -1744,6 +1975,210 @@ class OCTController:
     def warn_cannot_open_network(self):
         self.mainWindowUi.warn_cannot_open_network()
         
+    def curve_to_spline(self):
+        if(self.editRPE):
+            currLayer='RPE'
+        elif(self.editBM):
+            currLayer='BM'
+        currSlice=self.currentLayerNumber
+        layer,knots=self.oct.curve_to_spline(currLayer,currSlice)
+        self.mainWindowUi.draw_spline_layer_command(np.copy(layer),knots,currLayer,currSlice)
+        self.mainWindowUi.curve_to_spline()
+    
+    def update_curve_to_spline(self):
+        if(self.editRPE):
+            currLayer='RPE'
+        elif(self.editBM):
+            currLayer='BM'
+        currSlice=self.currentLayerNumber
+        self.oct.curve_to_spline(currLayer,currSlice)
+        self.mainWindowUi.curve_to_spline() 
+        self.slice_value_changed(self.currentLayerNumber,'layerViewer',furtherUpdate=False)        
+    def spline_to_curve(self):
+        if(self.editRPE):
+            currLayer='RPE'
+        elif(self.editBM):
+            currLayer='BM'
+        currSlice=self.currentLayerNumber
+        layer,knots=self.oct.spline_to_curve(currLayer,currSlice)
+        self.mainWindowUi.draw_spline_layer_update_command(layer,knots)
+        self.mainWindowUi.spline_to_curve()
+        self.mainWindowUi.content_changed('layerViewer')
+        
+    def update_spline(self):
+        if(self.editRPE):
+            currLayer='RPE'
+        elif(self.editBM):
+            currLayer='BM'
+        currSlice=self.currentLayerNumber
+        self.oct.spline_to_curve(currLayer,currSlice)
+        
+    def get_spline_knots(self,sliceZ):
+        if(self.editRPE):
+            currLayer='RPE'
+        elif(self.editBM):
+            currLayer='BM'
+        else:
+            return None
+        return self.oct.get_spline_knots(currLayer,sliceZ)
+        
+    def add_spline_knot(self,y,x,sliceZ):
+        if(self.editRPE):
+            currLayer='RPE'
+        elif(self.editBM):
+            currLayer='BM'
+        self.oct.add_spline_knot(y,x,currLayer,sliceZ)
+        self.update_spline()
+        self.update_curve_to_spline()
+        
+    def delete_spline_knot(self,y,x,sliceZ):
+        if(self.editRPE):
+            currLayer='RPE'
+        elif(self.editBM):
+            currLayer='BM'
+        self.oct.delete_spline_knot(y,x,currLayer,sliceZ)
+        self.update_spline()
+        self.update_curve_to_spline()
+        
+    def delete_spline_knots_in_region(self,topLeftX,\
+                    topLeftY,bottomRightX,bottomRightY,sliceNumZ):
+        if(self.editRPE):
+            currLayer='RPE'
+        elif(self.editBM):
+            currLayer='BM'
+        knots=self.oct.get_spline_knots(currLayer,sliceNumZ)
+        if(knots is None):
+            return 
+        knotsx,knotsy=knots
+        for i in range(len(knotsx)):
+            if(topLeftX<=knotsx[i]<=bottomRightX and topLeftY<=knotsy[i]<=bottomRightY):
+                self.oct.delete_spline_knot(knotsy[i],knotsx[i],currLayer,sliceNumZ)
+        self.update_spline()
+        self.update_curve_to_spline()
+        
+    def is_knot(self,y,x,sliceZ):
+        if(self.editRPE):
+            currLayer='RPE'
+        elif(self.editBM):
+            currLayer='BM'
+        return self.oct.is_knot(y,x,currLayer,sliceZ)
+        
+    def get_closest_knot(self,y,x,sliceZ):
+        if(self.editRPE):
+            currLayer='RPE'
+        elif(self.editBM):
+            currLayer='BM'
+        return self.oct.get_closest_knot(y,x,currLayer,sliceZ)
+        
+    def update_knot_position(self,y,x,oldy,oldx,sliceZ):
+        if(self.editRPE):
+            currLayer='RPE'
+        elif(self.editBM):
+            currLayer='BM'
+        self.oct.update_knot_position(y,x,oldy,oldx,currLayer,sliceZ)
+        self.update_spline()
+        self.update_curve_to_spline()
+    
+    def probmaps_does_exist(self):
+        return self.oct.probmaps_does_exist()
+    
+    def uncertainty_projection_changed(self,projectionID):
+        self.uncertaintyProjectionID=projectionID
+        self.slice_value_changed(self.currentEnfaceNumber,'enfaceViewer',furtherUpdate=False)
+        
+    def hide_suggested_segmentation(self,sliceNumZ,layerName):
+        self.showSuggestedSegmentation[layerName][sliceNumZ]=False
+        
+    def show_suggested_segmentation(self,sliceNumZ,layerName):
+        self.showSuggestedSegmentation[layerName][sliceNumZ]=True
+        
+    def layer_seggestion_value_changed(self,layerName,suggestRange):
+        if(layerName=='RPE'):
+            self.oct.set_rpe_suggest_extent(suggestRange)
+        elif(layerName=='BM'):
+            self.oct.set_bm_suggest_extent(suggestRange)
+        self.slice_value_changed(self.currentLayerNumber,'layerViewer',furtherUpdate=False)
+        
+    def accept_suggest_seg_command_redo(self,layerName,sliceNumZ,callerName,smoothness,uncType,extent,csps):
+        info=dict()
+        info=self.oct.accept_suggested_segmentation(layerName,sliceNumZ,smoothness,uncType,extent,csps)
+        self.mainWindowUi.content_changed(callerName)
+        return info
+    
+    def accept_suggest_seg_command_undo(self,layerName,sliceNumZ,info,\
+                        callerName,smoothness,uncType,extent,csps):
+        """
+        Undo the polynomial fitting action.
+        """
+        self.oct.accept_suggested_segmentation_using_info(info,sliceNumZ,layerName,extent,csps)     
+        self.slice_value_changed(sliceNumZ+1,'layerViewer',furtherUpdate=False)
+        
+    def accept_suggested_segmentation(self,layerId):
+        layerName='RPE'
+        extent=0
+        csps=None
+        sliceNumZ=self.currentLayerNumber-1
+        if(layerId==0): #RPE
+            layerName='RPE'
+            extent=self.oct.get_rpe_suggest_extent()
+            csps=self.oct.get_rpe_csps(sliceNumZ)
+        elif(layerId==1):
+            layerName='BM'
+            extent=self.oct.get_bm_suggest_extent()
+        
+        unc=self.convert_uncertainty_id_to_names(self.uncertaintyProjectionID)
+        uncType= 'Entropy' if unc is None else unc[1]
+        
+        self.mainWindowUi.accept_suggested_segmentation_command(sliceNumZ,layerName,self.get_smoothness(),uncType,extent,csps)
+        
+    def layer_seggestion_vis_changed(self,layerName,status):
+        if(layerName=='RPE'):
+            self.oct.set_rpe_suggest_show(status)
+        elif(layerName=='BM'):
+            self.oct.set_bm_suggest_show(status)
+        self.slice_value_changed(self.currentLayerNumber,'layerViewer',furtherUpdate=False)
+        
+    def get_GT_layer(self):
+        return self.oct.get_GT_layer(self.currentLayerNumber)
+        
+    def run_layer_drusen_analysis_over_a_set_of_data(self,readPath):
+        dirs = [f for f in os.listdir(readPath)]   
+        for d in dirs:
+            
+            # Read the scan
+            scanPath=readPath+d+os.sep
+            if(os.path.exists(scanPath+'drusen-analysis')):
+                print "Skip:",scanPath
+                continue
+            print scanPath
+            
+            self.delete_previous()
+            self.lastScanPath=scanPath
+            self.oct.set_scan_path(scanPath)
+            self.oct.read_scan_from(scanPath)
+            if(self.oct.scans is None):
+                print "Skip:",scanPath 
+                continue
+            # Find layers
+            self.oct.get_layers()
+            self.currentLayerNumber=1
+            print scanPath
+            # Find drusen
+            self.currentDrusenNumber=1
+            self.oct.get_drusen(2)
+
+            # Compute enface drusen
+            self.oct.get_enface()
+            self.oct.get_enface_drusen()
+        
+            # Quantify drusen
+            self.oct.quantify_drusen()
+            
+            # SaveLayers
+            self.oct.save_layers(scanPath)
+            self.oct.save_drusen(scanPath)
+            self.oct.save_drusen_quantification(scanPath)
+            
 if __name__ == "__main__":
     import sys
     app = QtGui.QApplication(sys.argv)
