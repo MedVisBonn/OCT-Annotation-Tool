@@ -17,6 +17,7 @@ from scipy import misc
 import skimage.measure as skm
 from PyQt4 import QtCore, QtGui
 from os.path import isfile, join
+import xml.etree.ElementTree as ET
 from matplotlib import pyplot as plt
 
 import deeplearning
@@ -1592,7 +1593,137 @@ class OCT:
         (See Toothy's implementation in the comments)
         '''
         return [ self.atoi(c) for c in re.split('(\d+)', text) ]
+        
+    def get_xml_files(self,directory):
+        '''This function returnes a list with all the xml files contained in the directory'''
+        result = []
+        for subdir, dirs, files in os.walk(directory):
+            for file in files:
+                filepath = subdir + os.sep + file
+                if filepath.endswith(".xml"):
+                    result.append(filepath)
+        return result
     
+    def convert_heidelberg_eng_format(self,directory, layer):
+        '''This function takes a directory containing different folders with OCT scan information as input and 
+        constructs for each image in the different subfolders a corresponding image displaying only the layer 
+        specified in the input.'''
+        
+        path = directory + os.path.sep+'layers'
+        # If layers are already extracted, skip
+        if(os.path.exists(path) and len([f for f in listdir(path) if isfile(join(path, f))])>0):
+            return
+        #Create a new folder to store the image
+        if not os.path.exists(path):
+            os.makedirs(path)
+        os.chdir(path)
+    
+        #Get the name of the subfolders in the original folder 
+        subfolders = [x[0].split(os.path.sep)[-1] for x in os.walk(directory)][1:]
+    
+        #Create the same subfolders in the new directory
+        for folder in subfolders:
+            p = path + os.path.sep + folder
+            if not os.path.exists(p) and '-' in folder:
+                os.makedirs(p)
+        
+        #Get the path to all the xml_files
+        xml_files = self.get_xml_files(directory)
+        if(len(xml_files)==0):
+            return
+        #Get the path where to store the xml_file
+        img_paths = []
+        for p in xml_files:
+            img_paths.append(path + os.path.sep)
+            
+        
+        #Construct the images
+        for index in range(len(xml_files)):
+        
+            #Read in the XML file and store the root in root
+            tree = ET.parse(xml_files[index])
+            root = tree.getroot()
+    
+            #Search for the image information in the file
+            for img in root.iter('Image'):
+                
+                width = int(img.find('OphthalmicAcquisitionContext').find('Width').text)
+                height = int(img.find('OphthalmicAcquisitionContext').find('Height').text)
+    
+                #Find the image name and ID and store those variables
+                file_path = img.find('ImageData').find('ExamURL').text
+                file_name = file_path.split("\\")[-1].split('.')[0]
+                img_id = int(img.find('ID').text)
+                
+                imgInit=False
+                layerId=1
+                #Search for the intensity values
+                for seg in img.iter('Segmentation'):
+                    for seglin in seg.iter('SegLine'):  
+                        if seglin.find('Name').text in layer:
+    
+                            #Store the intensity values as np array
+                            y_values = np.asarray(seglin.find('Array').text.split())
+                            y_values = y_values.astype(np.float)
+                            
+                            if(not imgInit):
+                                #Create the output array
+                                img_layer = np.zeros((height,width))
+                                imgInit=True
+                                
+                            layerId=layer.index(seglin.find('Name').text)+1
+                            
+                            #Add the intensity values to the output array
+                            for i in range(img_layer.shape[1]):
+                                j = int(round(y_values[i]))
+                                if j < len(y_values): #Values outside of this range are missing values
+                                    img_layer[j,i] = layerId+img_layer[j,i]
+                                
+                                    #check discontinuity
+                                    #get the previous y value
+                                    previous_y = int(round(y_values[i-1]))
+                                    #check if it is in the range of the image
+                                    if i > 0 and previous_y < len(y_values):
+                                        #while there is discontinuity, add pixels
+                                        while abs(previous_y-j) > 1:
+                                            if previous_y > j:
+                                                img_layer[j+1,i] = layerId+img_layer[j+1,i]
+                                                j += 1
+                                            else:
+                                                img_layer[j-1,i] = layerId+img_layer[j-1,i]
+                                                j -= 1
+                                
+                #Create the image name and save it if it exists
+                img_name = str(img_id) + '-layers.png'
+                os.chdir(img_paths[index])
+                try:
+                    img_layer=self.convert_indices(img_layer)
+#                    cv2.imwrite(img_name,img_layer)
+                    misc.imsave(img_name,img_layer)
+                except:
+                    continue
+    
+                #Rename the input image:
+                os.chdir(directory + os.path.sep + img_paths[index].split(os.path.sep)[-1])
+                new_name = str(img_id) + '-' + file_name + '-Input.tif'
+                old_name = file_name + '.tif'
+                try:
+                    os.rename(old_name, new_name)
+                except:
+                    continue
+        fnames=[f for f in listdir(directory) if isfile(join(directory, f))]
+        for f in fnames:
+            ftype = f.split('-')[-1]
+            if(ftype!="Input.tif"):
+                fFormat = f.split('.')[-1]
+                if(fFormat=='tif'):
+                    os.rename(f,"fundus.tif")
+    def rgb_to_gray(self,img):
+        if(len(img.shape)==3):
+            return 0.299*img[:,:,0] + 0.587*img[:,:,1] + 0.114*img[:,:,2]
+        if(len(img.shape)==2):
+            return img
+            
     def read_scan_from(self,scanPath):
         rawstack = list()
         ind = list()
@@ -1600,6 +1731,10 @@ class OCT:
         rawSize=()
         idCounter=1
         genDepth=1
+        
+        # If heidelberg format, make necessary changes
+        self.convert_heidelberg_eng_format(scanPath,['BM','RPE'])
+        
         for root,dirs,files in os.walk(scanPath):
             depth=len(scanPath.split(os.path.sep))
             curDepth=len(root.split(os.path.sep))
@@ -1607,9 +1742,11 @@ class OCT:
                 continue
             if(len(files)<=0):
                 return
+            
             files.sort(key=self.natural_keys)
             for fname in files:
-                if(fname=='enface.png'):
+                
+                if(fname=='enface.png' or fname=='fundus.tif'):
                     continue
                 try:
                     ftype = fname.split('-')[-1]
@@ -1618,12 +1755,12 @@ class OCT:
                 if(ftype=='Input.tif'):
                     ind.append(int(fname.split('-')[0]))
             
-                    raw = io.imread(os.path.join(root,fname))
+                    raw = self.rgb_to_gray(io.imread(os.path.join(root,fname)))
                     rawSize = raw.shape
                     rawStackDict[ind[-1]]=raw
                 else:
                     try:
-                        raw = io.imread(os.path.join(root,fname))
+                        raw = self.rgb_to_gray(io.imread(os.path.join(root,fname)))
                     except:
                         print "Warning reading file:"+fname+" is not image."
                         continue

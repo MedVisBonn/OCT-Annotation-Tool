@@ -171,7 +171,8 @@ class OCTController:
             elif(evaluateDrusen):
                 scanPath="/home/gorgi/Desktop/Data/Data/210715_145"
             else:
-                scanPath="/home/gorgi/Desktop/OCT-UnderExtention/OCT/dummyData/210715_145"
+#                scanPath="/home/gorgi/Desktop/OCT-UnderExtention/OCT/dummyData/210715_145"
+                scanPath="/home/gorgi/Desktop/AddNewReadingFormat/Data/280711_19"
             self.lastScanPath=scanPath
         else:
             scanPath=self.mainWindowUi.get_scan_path(self.lastScanPath)
@@ -2183,5 +2184,6 @@ if __name__ == "__main__":
     import sys
     app = QtGui.QApplication(sys.argv)
     octController=OCTController(app)
+#    octController.mainWindow.show()
     octController.mainWindow.showMaximized()
     sys.exit(app.exec_())
