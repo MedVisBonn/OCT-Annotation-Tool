@@ -25,6 +25,8 @@ class MyGraphicsView(QtGui.QGraphicsView):
         QtGui.QGraphicsView.__init__(self)
         self.setTransformationAnchor(QtGui.QGraphicsView.AnchorUnderMouse)
         self.parentWindow=parent
+#        self.setDragMode(QtGui.QGraphicsView.ScrollHandDrag)
+        self.currentDragMode=QtGui.QGraphicsView.NoDrag
         
     def wheelEvent(self,event):        
         adj = (event.delta()/120) * 0.1
@@ -33,22 +35,38 @@ class MyGraphicsView(QtGui.QGraphicsView):
     def fit(self):
         self.scale(1.1,1.1)
         self.scale(0.9,0.9)
-    
+
+
     def keyPressEvent(self,event):
+        if event.isAutoRepeat():
+            return
+        if(self.currentDragMode==QtGui.QGraphicsView.ScrollHandDrag):
+            return
         if(event.key()==QtCore.Qt.Key_Control):
             status=self.parentWindow.get_cursor_status()
             if(status=='showHand'):
                 viewport=self.viewport()
                 viewport.setCursor(QtCore.Qt.PointingHandCursor)
+        elif(event.key()==QtCore.Qt.Key_Space):
+            self.currentDragMode=QtGui.QGraphicsView.ScrollHandDrag
+            self.setDragMode(QtGui.QGraphicsView.ScrollHandDrag)
+            self.parentWindow.set_drag(True)
         else:
             return QtGui.QGraphicsView.keyPressEvent(self, event)
             
     def keyReleaseEvent(self,event):
+        if event.isAutoRepeat():
+            return
+        self.currentDragMode=QtGui.QGraphicsView.NoDrag
         if(event.key()==QtCore.Qt.Key_Control):
             status=self.parentWindow.get_cursor_status()
             if(status=='showHand'):
                 viewport=self.viewport()
                 viewport.setCursor(QtCore.Qt.ArrowCursor)
+        elif(event.key()==QtCore.Qt.Key_Space):
+            self.currentDragMode=QtGui.QGraphicsView.NoDrag
+            self.setDragMode(QtGui.QGraphicsView.NoDrag)
+            self.parentWindow.set_drag(False)
         else:
             return QtGui.QGraphicsView.keyPressEvent(self, event)    
  
@@ -138,6 +156,8 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         
         self.mergeDrusenMode=False
         self.sourceLabel=-1
+        
+        self.drag=False
      
         self.clickType=1 # 1: left click, 2: right click
         colors1 = [(255/255.,0/255.,0/255.),(227/255.,128/255.,0/255.),\
@@ -266,6 +286,9 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
     def set_separation_threshold(self,value):
         self.separatorHeightThreshold=value
         self.combine_images()
+
+    def set_drag(self,val):
+        self.drag=val
 
     def curve_to_spline(self):
         self.unset_all()
@@ -653,6 +676,7 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
             self.color.setRgb(0,0,0)
     
     def mousePressEvent (self, event):
+        
         modifiers = QtGui.QApplication.keyboardModifiers()
         self.setPaintingColor(event.button())        
         
@@ -661,12 +685,20 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         self.controller.write_in_log(self.controller.get_time()+',clicked,'+\
             self.etype+','+self.controller.get_current_active_window()+'\n')
         self.clickType=event.button()
+        
+        if(self.drag):
+            return QtGui.QGraphicsPixmapItem.mousePressEvent(self, event)
+            
+        if(self.updateGrab):
+            self.grabPosition=self.x
+            self.controller.grap_position_changed(int(self.x),int(self.y),self.etype)
+            
         if(self.selectRect):
             isRightClick=event.button()==2
             if((self.showSplineKnots and isRightClick) or (not self.showSplineKnots)):
                 self.rectFixPoint.setX(self.x)
                 self.rectFixPoint.setY(self.y)
-        if(self.selectLine):
+        elif(self.selectLine):
             x=int(self.x)+0.5
             y=int(self.y)+0.5
             self.line.setP1(QtCore.QPointF(x,y))
@@ -706,7 +738,7 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
             else: # By click merge the druse with the source
                 self.copy_source_label_to_destination(int(self.y),int(self.x))
         
-        elif(self.showSplineKnots):
+        if(self.showSplineKnots):
             isRightClick=event.button()==2
             if(isRightClick): # Delete knot
                 self.controller.delete_spline_knot(int(self.y),int(self.x),self.sliceNum-1)
@@ -719,10 +751,10 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
                 if(modifiers == QtCore.Qt.ControlModifier):
                     if(not self.hasPickedKnot):
                         self.controller.add_spline_knot(int(self.y),int(self.x),self.sliceNum-1)
-        if(self.updateGrab):
-            self.grabPosition=self.x
-            self.controller.grap_position_changed(int(self.x),int(self.y),self.etype)
+        
+        
             
+        
     def copy_source_label_to_destination(self,y,x):
         if(self.labels is None):
             return
@@ -750,14 +782,17 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
             isRightClick=self.clickType==2
             if((self.showSplineKnots and isRightClick) or (not self.showSplineKnots)):
                 self.draw_rect_area(event)
+                
         elif(self.selectLine):
             x=int(self.x)+0.5
             y=int(self.y)+0.5
             self.line.setP2(QtCore.QPointF(x,y))
             self.update()
+            
         elif(self.drawPen):
             self.controller.app.processEvents()
             self.draw_point_moving_mouse(event)
+            
         if(self.updateGrab):
             self.grabPosition=self.x
             self.controller.grap_position_changed(self.x,self.y,self.etype)
@@ -782,7 +817,7 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
         if(self.hasPickedKnot):
             self.hasPickedKnot=False
             del self.pickedKnot   
-            
+        
     def draw_rect_area(self,event):
         tl=self.rectFixPoint.x(),self.rectFixPoint.y()
         width=(self.x-tl[0])
@@ -1376,6 +1411,9 @@ class ImageEditor(QtGui.QWidget):
         layout.addWidget(self.view)
         self.setLayout(layout)
 
+    def set_drag(self,val):
+        self.imagePanel.set_drag(val)
+        
     def set_main_image(self,image):
         self.mainPhoto=image
         self.scene.clear()

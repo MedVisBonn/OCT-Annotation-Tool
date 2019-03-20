@@ -132,6 +132,7 @@ class OCT:
         plt.imshow( image, cmap = plt.get_cmap('gray'))
         plt.show(block)  
         
+        
     def set_rpe_suggest_extent(self,val):
         self.rpeSuggestExtent=val
         
@@ -1791,10 +1792,86 @@ class OCT:
         else:
             self.zRate=13
             self.bResolution='low'
+    
+    def insert_druse_at_with_normal_thickness(self,slices,posY,thickness):
+        if(len(slices)>0):
+            prevValues=np.copy(self.drusen[:,posY,slices])
+            for s in slices:
+                layer=self.layers[:,:,s]
+                a=np.zeros(layer.shape)
+                a[:,posY]=1.0
+                allArea=self.find_area_between_seg_lines(layer)*255.0
+                # Find BM layer, shift it up by thickness, set everything as background under        
+                bmy,bmx=self.get_BM_location(layer)
+                filterMask=np.zeros(allArea.shape)
+                bmy=bmy-thickness
+                filterMask[bmy,bmx]=1.0
+                filterMask=np.cumsum(filterMask,axis=0)
+                filterMask[filterMask>0]=1.0
+                allArea[filterMask>0]=0
+                allArea=allArea*a
+                y,x=np.where(allArea>0)
+                self.drusen[y,x,s]=255
+            return prevValues
             
+    def set_values_on_enface(self,posY,s,value,thickness):
+        
+        values=np.copy(self.drusen[:,posY,s])
+        if(value==0):
+            self.drusen[:,posY,s]=0
+        else:
+            layer=self.layers[:,:,s]
+            a=np.zeros(layer.shape)
+            a[:,posY]=1.0
+            allArea=self.find_area_between_seg_lines(layer)*255.0
+            # Find BM layer, shift it up by thickness, set everything as background under        
+            bmy,bmx=self.get_BM_location(layer)
+            filterMask=np.zeros(allArea.shape)
+            bmy=bmy-thickness
+            filterMask[bmy,bmx]=1.0
+            filterMask=np.cumsum(filterMask,axis=0)
+            filterMask[filterMask>0]=1.0
+            allArea[filterMask>0]=0
+            allArea=allArea*a
+            y,x=np.where(allArea>0)
+            self.drusen[y,x,s]=255
+        return values
+      
+    def set_values_on_enface_using_vals(self,posY,slices,values):
+       self.drusen[:,posY,slices]=np.copy(values)
+    
+    def set_values_on_enface_line(self,layers,posY,value,thickness):
+        values=np.copy(self.drusen[:,posY,layers])
+        if(value==0):
+            self.drusen[:,posY,layers]=0
+        else:
+            uniqueLayers=np.unique(layers)
+            for s in uniqueLayers:
+                layer=self.layers[:,:,s]
+                a=np.zeros(layer.shape)
+                # find corresponding Ys for the current slice
+                ind=np.where(layers==s)[0]
+                for ii in ind:
+                    a[:,posY[ii]]=1.0
+                allArea=self.find_area_between_seg_lines(layer)*255.0
+                # Find BM layer, shift it up by thickness, set everything as background under        
+                bmy,bmx=self.get_BM_location(layer)
+                filterMask=np.zeros(allArea.shape)
+                bmy=bmy-thickness
+                filterMask[bmy,bmx]=1.0
+                filterMask=np.cumsum(filterMask,axis=0)
+                filterMask[filterMask>0]=1.0
+                allArea[filterMask>0]=0
+                allArea=allArea*a
+                y,x=np.where(allArea>0)
+                self.drusen[y,x,s]=255
+        return values
+      
+    def set_values_on_enface_using_vals_line(self,slices,posY,values):
+       self.drusen[:,posY,slices]=np.copy(values)    
+    
     def remove_druse_at(self,slices,posY):
         if(len(slices)>0):
-            
             prevValues=np.copy(self.drusen[:,posY,slices])
             self.drusen[:,posY,slices]=0.
             return prevValues
@@ -2222,7 +2299,7 @@ class OCT:
         with open( dataPath,'w') as output:
             pickle.dump( d, output, pickle.HIGHEST_PROTOCOL )
             
-    def find_area_between_seg_lines(label):
+    def find_area_between_seg_lines(self,label):
         h, w = label.shape
         label_area = np.copy(label)
         ls = np.sort(np.unique( label_area ))
@@ -2533,6 +2610,42 @@ class OCT:
                             miny=y+j
                             mindist=dist
         return minx,miny
+    def show_images(self,images, r, c, titles = [], d = 0 , save_path = "" , block = True):
+        i = 1
+        for img in images:
+            ax = plt.subplot( r, c, i )
+            ax.xaxis.set_visible( False )
+            ax.yaxis.set_visible( False )
+            if( len(titles) != 0 ):
+                ax.set_title( titles[i-1] )
+            if( len(img.shape) > 2 ):
+                plt.imshow( img )
+            else:
+                plt.imshow( img , cmap = plt.get_cmap('gray'))
+            i += 1
+        if( save_path != "" ):
+            plt.savefig(save_path+".png")
+            plt.close()
+        else:
+            plt.show(block)    
+            
+    def extract_drusen_using_normal_thickness(self,thickness,sliceZ):
+        layer=self.layers[:,:,sliceZ]
+        allArea=self.find_area_between_seg_lines(layer)*255.0
+        # Find BM layer, shift it up by thickness, set everything as background under        
+        bmy,bmx=self.get_BM_location(layer)
+        filterMask=np.zeros(allArea.shape)
+        bmy=bmy-thickness
+        filterMask[bmy,bmx]=1.0
+        filterMask=np.cumsum(filterMask,axis=0)
+        filterMask[filterMask>0]=1.0
+        allArea[filterMask>0]=0
+        self.drusen[:,:,sliceZ]=allArea
+        
+    def extract_drusen_using_normal_thickness_in_volume(self,thickness):
+        for s in range(self.drusen.shape[2]):
+            self.extract_drusen_using_normal_thickness(thickness,s)
+            
     def update_knot_position(self,y,x,oldy,oldx,layerName,sliceZ):
         if(x<0 or x>=self.width or y<0 or y>=self.height):
             return

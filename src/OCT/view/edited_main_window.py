@@ -161,6 +161,26 @@ class ApplySplitCommand(QtGui.QUndoCommand):
         
     def redo(self):
         self.info=self.parentWind.apply_split_command_undo_redo(self.info,'redo')
+
+class ExtractDrusenNormalThicknessCommand(QtGui.QUndoCommand):
+    def __init__(self,parent,thickness,sliceZ,callerName):
+        QtGui.QUndoCommand.__init__(self)
+        super(ExtractDrusenNormalThicknessCommand,self).__init__()
+        self.thickness=thickness
+        self.viewName=callerName
+        self.sliceNumZ=sliceZ
+        self.parentWind=parent
+        self.info=None
+        self.drusen=None
+        
+    def undo(self):
+        self.parentWind.extract_drusen_normal_thickness_command_undo_redo(\
+            self.thickness,self.viewName,self.drusen,self.sliceNumZ,'undo')
+        
+    def redo(self):
+        self.parentWind.oct_controller.set_slice_number(self.sliceNumZ+1,self.viewName)
+        self.drusen=self.parentWind.extract_drusen_normal_thickness_command_undo_redo(\
+            self.thickness,self.viewName,self.drusen,self.sliceNumZ,'redo')
                 
 class DrawPolyFitCommand(QtGui.QUndoCommand):
     
@@ -191,6 +211,49 @@ class DrawPolyFitCommand(QtGui.QUndoCommand):
                 self.topLeftX,self.topLeftY,self.bottomRightX,self.bottomRightY,\
                 self.polyDegree,self.layerName,self.viewName,self.info,self.sliceNum,'redo')
  
+ 
+class DrawDrusenOnEnfaceCommand(QtGui.QUndoCommand):
+    
+    def __init__(self,parent,x,y,color,normalThickness,callerName):
+        QtGui.QUndoCommand.__init__(self)
+        super(DrawDrusenOnEnfaceCommand,self).__init__()
+        self.x=x
+        self.y=y
+        self.color=color
+        self.viewName=callerName
+        self.thickness=normalThickness
+        self.parentWind=parent
+        self.info=None
+        
+    def undo(self):
+        self.parentWind.draw_drusen_on_enface_command_undo_redo(self.x,self.y,\
+        self.color,self.viewName,self.info,self.thickness,'undo')
+        
+    def redo(self):
+        self.info=self.parentWind.draw_drusen_on_enface_command_undo_redo(self.x,self.y,\
+        self.color,self.viewName,self.info,self.thickness,'redo')
+         
+class DrawLineOnDrusenEnface(QtGui.QUndoCommand):
+    
+    def __init__(self,parent,y,s,color,normalThickness,callerName):
+        QtGui.QUndoCommand.__init__(self)
+        super(DrawLineOnDrusenEnface,self).__init__()
+        self.s=s
+        self.y=y
+        self.color=color
+        self.viewName=callerName
+        self.thickness=normalThickness
+        self.parentWind=parent
+        self.info=None
+        
+    def undo(self):
+        self.parentWind.draw_line_on_enface_command_undo_redo(self.s,self.y,\
+        self.color,self.viewName,self.info,self.thickness,'undo')
+        
+    def redo(self):
+        self.info=self.parentWind.draw_line_on_enface_command_undo_redo(self.s,self.y,\
+        self.color,self.viewName,self.info,self.thickness,'redo')
+         
 class AcceptSuggestedSegmentationCommand(QtGui.QUndoCommand):
     
     def __init__(self,parent,sliceNumZ,layerName,smoothness,uncType,extent,csps):
@@ -1053,7 +1116,22 @@ class Ui_MainWindow(object):
                         'layerViewer',smoothness,uncType,extent,csps)   
                     self.oct_controller.slice_value_changed(sliceNumZ+1,\
                         'layerViewer',furtherUpdate=False)
-                        
+    
+    def extract_drusen_normal_thickness_command_undo_redo(self,thickness,\
+            viewName,drusen,sliceNumZ,actionMode):
+               
+            if(actionMode=='redo'):
+                drusen=self.oct_controller.extract_drunsen_using_normal_thickness_redo(\
+                    thickness,viewName,sliceNumZ)
+                self.oct_controller.slice_value_changed(sliceNumZ+1,\
+                    viewName,furtherUpdate=False)
+                return drusen
+            elif(actionMode=='undo'):
+                self.oct_controller.extract_drunsen_using_normal_thickness_undo(\
+                    thickness,viewName,sliceNumZ,drusen)   
+                self.oct_controller.slice_value_changed(sliceNumZ+1,\
+                    'drusenViewer',furtherUpdate=False)
+                    
     def draw_poly_fit_command_undo_redo(self,image,topLeftX,topLeftY,bottomRightX,\
                 bottomRightY,polyDegree,layerName,viewName,info,sliceNum,actionMode):
 
@@ -1073,6 +1151,41 @@ class Ui_MainWindow(object):
                     self.oct_controller.slice_value_changed(sliceNum,\
                         'layerViewer',furtherUpdate=False)
                         
+    def draw_drusen_on_enface_command_undo_redo(self,x,y,\
+        color,viewName,info,thickness,actionMode):
+            if(viewName=="enfaceDrusenViewer"):
+                if(actionMode=="undo"):
+                    self.oct_controller.draw_drusen_on_enface_undo(x,y,color,thickness,info)
+                    self.oct_controller.slice_value_changed(y+1,\
+                        'enfaceDrusenViewer',furtherUpdate=False)
+                    self.oct_controller.slice_value_changed(y+1,\
+                        'drusenViewer',furtherUpdate=False)   
+                elif(actionMode=="redo"):
+                    infoL=self.oct_controller.draw_drusen_on_enface_redo(x,y,color,thickness)
+                    self.oct_controller.slice_value_changed(y+1,\
+                        'enfaceDrusenViewer',furtherUpdate=False)
+                    self.oct_controller.slice_value_changed(y+1,\
+                        'drusenViewer',furtherUpdate=False)   
+                    return infoL
+        
+    
+    def draw_line_on_enface_command_undo_redo(self,s,y,\
+        color,viewName,info,thickness,actionMode):
+            if(viewName=="enfaceDrusenViewer"):
+                if(actionMode=="undo"):
+                    self.oct_controller.draw_line_on_enface_undo(s,y,color,thickness,info)
+                    self.oct_controller.slice_value_changed(s[0]+1,\
+                        'enfaceDrusenViewer',furtherUpdate=False)
+                    self.oct_controller.slice_value_changed(s[0]+1,\
+                        'drusenViewer',furtherUpdate=False)   
+                elif(actionMode=="redo"):
+                    infoL=self.oct_controller.draw_line_on_enface_redo(s,y,color,thickness)
+                    self.oct_controller.slice_value_changed(s[0]+1,\
+                        'enfaceDrusenViewer',furtherUpdate=False)
+                    self.oct_controller.slice_value_changed(s[0]+1,\
+                        'drusenViewer',furtherUpdate=False)   
+                    return infoL
+    
     def draw_spline_command_undo_redo(self,prevLayer,prevKnots,redoLayer,redoKnots,layerName,\
                 viewName,info,sliceNum,actionMode):
         if( viewName=='layerViewer'):
@@ -1509,6 +1622,16 @@ class Ui_MainWindow(object):
         self.undoStack.push(command)
         self.actionUndo.setEnabled(True)
     
+    def draw_drusen_on_enface_command(self,x,y,color,normalThickness,callerName):    
+        command=DrawDrusenOnEnfaceCommand(self,x,y,color,normalThickness,callerName)
+        self.undoStack.push(command)
+        self.actionUndo.setEnabled(True)
+     
+    def draw_line_on_enface_command(self,y,s,color,normalThickness,callerName):
+        command=DrawLineOnDrusenEnface(self,y,s,color,normalThickness,callerName)
+        self.undoStack.push(command)
+        self.actionUndo.setEnabled(True)
+        
     def draw_cost_point_command(self,x,y,smoothness,layerName,callerName,sliceNum):
         command=DrawCostPointCommand(self,x,y,smoothness,layerName,callerName,sliceNum)
         self.undoStack.push(command)
@@ -1521,6 +1644,11 @@ class Ui_MainWindow(object):
         self.undoStack.push(command)
         self.actionUndo.setEnabled(True) 
    
+    def extract_drunsen_using_normal_thickness_command(self,thickness,sliceZ,callerName):
+        command=ExtractDrusenNormalThicknessCommand(self,thickness,sliceZ,callerName)
+        self.undoStack.push(command)
+        self.actionUndo.setEnabled(True)
+        
     def accept_suggested_segmentation_command(self,sliceNumZ,layerName,\
             smoothness,uncType,extent,csps):
         command=AcceptSuggestedSegmentationCommand(self,sliceNumZ,layerName,\
@@ -1992,6 +2120,10 @@ class Ui_MainWindow(object):
         if(self.subwindowHRFViewerUI is not None):
             self.subwindowHRFViewerUI.morphology_value_changed(value)
         self.morphLevel=value
+    
+    def normal_thickness_value_changed(self,value):    
+#        print "ToDo - in edited_main_window in normal_thickness_value_changed:",value
+        pass
     
     def polydegree_value_changed(self,value):
         if(self.subwindowLayerViewerUI is not None):

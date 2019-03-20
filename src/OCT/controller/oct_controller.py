@@ -61,6 +61,8 @@ class OCTController:
         self.max_threshold=2
         self.uncertaintyProjectionID=0
         
+        self.currentNormalThickness=3        
+        
         self.drusenEditted=False
         self.layerEditted=False
         self.hrfEditted=False
@@ -172,7 +174,7 @@ class OCTController:
                 scanPath="/home/gorgi/Desktop/Data/Data/210715_145"
             else:
 #                scanPath="/home/gorgi/Desktop/OCT-UnderExtention/OCT/dummyData/210715_145"
-                scanPath="/home/gorgi/Desktop/AddNewReadingFormat/Data/280711_19"
+                scanPath="/home/gorgi/Desktop/OCT-Editting-November-ForMaximilian/OCT-Editing-Tool/src/OCT/dummyData/210715_145"
             self.lastScanPath=scanPath
         else:
             scanPath=self.mainWindowUi.get_scan_path(self.lastScanPath)
@@ -1105,10 +1107,37 @@ class OCTController:
                     zns,[255,0,255],callerName,self.currentDrusenNumber)
         return image
         
+        
+    def draw_drusen_on_enface_redo(self,x,y,color,thickness):
+        info=dict()
+        info['thickness']=self.currentNormalThickness
+        self.currentNormalThickness=thickness
+        info['values']=self.oct.set_values_on_enface(x,y,color[0],thickness)
+        return info
+        
+    def draw_drusen_on_enface_undo(self,x,y,color,thickness,info):
+        self.currentNormalThickness=info['thickness']
+        self.oct.set_values_on_enface_using_vals(x,y,info['values'])
+        
+    def draw_line_on_enface_redo(self,s,y,color,thickness):
+        info=dict()
+        info['thickness']=self.currentNormalThickness
+        self.currentNormalThickness=thickness
+        info['values']=self.oct.set_values_on_enface_line(s,y,color[0],thickness)
+        return info
+        
+    def draw_line_on_enface_undo(self,s,y,color,thickness,info):
+        self.currentNormalThickness=info['thickness']
+        self.oct.set_values_on_enface_using_vals_line(s,y,info['values'])
+        
     def draw_point(self,image,x,y,color,sliceNum,callerName='',undoRedo=False):
         """
         Draw a point on given viewer when the pen tool is selected.
         """
+        if(callerName=='enfaceDrusenViewer'):
+            self.mainWindowUi.draw_drusen_on_enface_command(x,y,color,self.currentNormalThickness,callerName)
+            return
+            
         prevValues=[]
         redoValues=[]
         oldValue=image[int(y),int(x)]
@@ -1156,11 +1185,13 @@ class OCTController:
             x.append(i)
        
         elif(callerName=='enfaceDrusenViewer'):
-            if(color[0]==0):
-                image[int(y),int(x)]=color[0]
-                prevValues=self.oct.remove_druse_at([y],[x])
-                self.slice_value_changed(sliceNum,callerName='drusenViewer',\
-                    furtherUpdate=False)
+            self.mainWindowUi.draw_drusen_on_enface_command([x],[y],color,callerName)
+            return 
+#            if(color[0]==0):
+#                image[int(y),int(x)]=color[0]
+#                prevValues=self.oct.remove_druse_at([y],[x])
+#                self.slice_value_changed(sliceNum,callerName='drusenViewer',\
+#                    furtherUpdate=False)
         else:
             image[int(y),int(x)]=color[0]
         self.mainWindowUi.content_changed(callerName)
@@ -1347,6 +1378,17 @@ class OCTController:
         prevValues=[]
         redoValues=[]
         
+        if(callerName=="enfaceDrusenViewer"):
+            for i in range(len(points)):
+                s.append(points[i][1])
+                y.append(points[i][0])
+            if(len(s)>0):
+                self.lineS.append(s)
+                self.lineY.append(y)
+            self.mainWindowUi.draw_line_on_enface_command(y,s,color,\
+                self.currentNormalThickness,callerName)
+            return image
+        
         if(callerName=='gaViewer'):
             if(self.editGA):
                 image=self.oct.get_gas()[:,:,self.currentGANumber-1]
@@ -1511,6 +1553,7 @@ class OCTController:
             elif(self.editRPE):
                 layerName='RPE'
             if(callerName=='enfaceDrusenViewer' or callerName=='drusenViewer'):
+                print prevValues
                 self.mainWindowUi.draw_curve_command(x,y,s,color,callerName,\
                                 self.currentDrusenNumber,prevValues,redoValues,layerName)
             elif(callerName=='hrfViewer'):
@@ -1856,7 +1899,7 @@ class OCTController:
         to the selected point using the grab tool.
         """
         position=int(min(self.oct.width-1,max(0,position)))
-        sliceNum=int(min(self.oct.numSlices,max(0,sliceNum)))+1
+        sliceNum=int(min(self.oct.numSlices-1,max(0,sliceNum)))+1
         
         if(not self.enfaceDrusenController is None):
             sliceNum=min(sliceNum,self.oct.numSlices)
@@ -1925,9 +1968,62 @@ class OCTController:
     def all_threshold_value_changed(self,value):
         self.all_threshold=value
         self.mainWindowUi.all_threshold_value_changed(value)
-       
+    
+    def manage_normal_layer_thickness_in_drusen(self,path,thickness):
+        dtickness=dict()
+        with open(path+os.sep+"normal_retinal_thickness_per_bscan.txt",'a+') as f:
+               lines=f.readlines()
+               for l in lines:
+                   dtickness[int(l.split(':')[0])]=int(l.split(':')[1])
+        dtickness[self.currentDrusenNumber]=thickness
+        with open(path+os.sep+"normal_retinal_thickness_per_bscan.txt",'w') as f:
+            for k in dtickness.keys():
+                f.write(str(k)+":"+str(dtickness[k])+"\n")
+                
+    def extract_drunsen_using_normal_thickness(self,thickness,scope):
+        """
+        Create the command for polynomial fitting. 
+        """
+        callerName=""
+        # Get current state to store for redo
+        if(scope=="bscan"):
+            callerName="drusenViewer"
+            path=self.lastScanPath+os.sep+"normalThickness"
+            self.oct.create_directory(path)
+            self.manage_normal_layer_thickness_in_drusen(path,thickness)
+#                f.write(str(self.currentDrusenNumber)+":"+str(thickness))
+        elif(scope=="volume"):
+            callerName="enfaceDrusenViewer"
+            # Store the value
+            path=self.lastScanPath+os.sep+"normalThickness"
+            self.oct.create_directory(path)
+            with open(path+os.sep+"normal_retinal_thickness.txt",'w') as f:
+                f.write(str(thickness))
+        self.mainWindowUi.extract_drunsen_using_normal_thickness_command(\
+            thickness,self.currentDrusenNumber-1,callerName)    
+    
+    def extract_drunsen_using_normal_thickness_redo(self,thickness,scope,sliceNum=None):
+        drusen=None
+        if(scope=="drusenViewer"):
+            drusen=np.copy(self.oct.get_drusen()[:,:,sliceNum])
+            self.oct.extract_drusen_using_normal_thickness(thickness,sliceNum)
+        elif(scope=="enfaceDrusenViewer"):
+            drusen=np.copy(self.oct.get_drusen())
+            self.oct.extract_drusen_using_normal_thickness_in_volume(thickness)
+        return drusen
+
+    def extract_drunsen_using_normal_thickness_undo(self,thickness,scope,sliceNumZ,drusen):
+        if(scope=="drusenViewer"):
+            self.oct.set_drusen_b_scan(drusen,sliceNumZ+1)
+        elif(scope=="enfaceDrusenViewer"):
+            self.oct.set_drusen(drusen)
+    
     def morphology_value_changed(self,value):
         self.mainWindowUi.morphology_value_changed(value)
+    
+    def normal_thickness_value_changed(self,value):
+        self.currentNormalThickness=value
+        self.mainWindowUi.normal_thickness_value_changed(value)    
     
     def poly_fit_degree_value_changed(self,value):
         self.mainWindowUi.polydegree_value_changed(value)

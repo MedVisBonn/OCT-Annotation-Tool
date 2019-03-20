@@ -352,6 +352,22 @@ class Ui_toolBox(object):
         self.gridLayout_2.addWidget(self.toolButtonUnCheckComp, 2, 2, 1, 1)
         
         
+        
+        
+        self.toolButtonSetNormalThickness = QtGui.QToolButton(self.groupBox_toolBox)
+        self.toolButtonSetNormalThickness.setMinimumSize(QtCore.QSize(34, 34))
+        self.toolButtonSetNormalThickness.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
+        icon47 = QtGui.QIcon()
+        icon47.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
+            "icons","icons","normalThickness.png"))),\
+            QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.toolButtonSetNormalThickness.setIcon(icon47)
+        self.toolButtonSetNormalThickness.setObjectName(_fromUtf8("toolButtonSetNormalThickness"))
+        self.gridLayout_2.addWidget(self.toolButtonSetNormalThickness, 1, 3, 1, 1)
+
+
+
+        
         self.toolButtonBBox = QtGui.QToolButton(self.groupBox_toolBox)
         self.toolButtonBBox.setMinimumSize(QtCore.QSize(34, 34))
         self.toolButtonBBox.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
@@ -361,7 +377,7 @@ class Ui_toolBox(object):
             QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.toolButtonBBox.setIcon(icon27)
         self.toolButtonBBox.setObjectName(_fromUtf8("toolButtonBBox"))
-        self.gridLayout_2.addWidget(self.toolButtonBBox, 1, 3, 1, 1)
+        self.gridLayout_2.addWidget(self.toolButtonBBox, 3, 2, 1, 1)
         
         self.toolButtonCostPnt = QtGui.QToolButton(self.groupBox_toolBox)
         self.toolButtonCostPnt.setMinimumSize(QtCore.QSize(34, 34))
@@ -674,6 +690,7 @@ class Ui_toolBox(object):
         self.toolButtonLine.setCheckable(True)
         self.toolButtonFill.setCheckable(True)
         self.toolButtonMorphology.setCheckable(True)
+        self.toolButtonSetNormalThickness.setCheckable(True)
         self.toolButtonDrawDru.setCheckable(True)
         self.toolButtonFilterDru.setCheckable(True)
         self.toolButtonGrab.setCheckable(True)
@@ -697,6 +714,7 @@ class Ui_toolBox(object):
         self.thresholdMaxValue=2
         self.polyFitDegreeValue=2
         self.smoothnessValue=2
+        self.normalThicknessValue=3
         
         self.druseSplitingNeighborhood=2
         self.druseSplittingMethod='localMax' #manual
@@ -707,6 +725,7 @@ class Ui_toolBox(object):
         self.toolButtonLine.clicked.connect(self.line_action)
         self.toolButtonFill.clicked.connect(self.fill_action)
         self.toolButtonMorphology.clicked.connect(self.morphology_action)
+        self.toolButtonSetNormalThickness.clicked.connect(self.set_normal_thickness_action)
         self.toolButtonDrawDru.clicked.connect(self.draw_dru_action)
         self.toolButtonFilterDru.clicked.connect(self.filter_dru_action)
         self.toolButtonGrab.clicked.connect(self.grab_action)
@@ -816,6 +835,7 @@ class Ui_toolBox(object):
         self.toolButtonSpline.setText(_translate("toolBox","...",None))
         self.toolButtonCheckComp.setText(_translate("toolBox", "...", None))
         self.toolButtonMorphology.setText(_translate("toolBox", "...", None))
+        self.toolButtonSetNormalThickness.setText(_translate("toolBox","...",None))
         self.toolButtonDrawDru.setText(_translate("toolBox", "...", None))
         self.toolButtonFilterDru.setText(_translate("toolBox", "...", None))
         self.toolButtonSplitDrusen.setText(_translate("toolBox","...",None))
@@ -878,6 +898,9 @@ class Ui_toolBox(object):
         self.toolButtonMorphology.setToolTip("Morphological Filter Tool: "+\
             "Enlarge selected area with left click.\nErode selected area "+\
             "with right click.\nUse size slider to set tool strength.")
+        
+        self.toolButtonSetNormalThickness.setToolTip("Set normal expected"+\
+            " distance between RPE and BM layers to extract drusen.")
                                              
         self.toolButtonDrawDru.setToolTip("Auto Annotate Tool: Automatically"+\
             " draws druse/HRF in selected area with left click.\nErase "+\
@@ -949,6 +972,12 @@ class Ui_toolBox(object):
             self.controller.apply_threshold_immediately()
         elif(self.lastClickedButton is self.toolButtonSplitDrusen):
             self.controller.apply_splitting_threshold()
+        elif(self.lastClickedButton is self.toolButtonSetNormalThickness):
+            activeWindow=self.get_active_edit_index()
+            if(activeWindow==2):
+                self.controller.extract_drunsen_using_normal_thickness(self.normalThicknessValue,scope="bscan")
+            if(activeWindow==3):
+                self.controller.extract_drunsen_using_normal_thickness(self.normalThicknessValue,scope="volume")
 
     def pen_action(self):
         if(self.toolButtonSpline.isChecked()):
@@ -1012,6 +1041,22 @@ class Ui_toolBox(object):
         self.enable_morphology_tools()
         self.controller.activate_morphology(self.morghologyValue)
     
+    def set_normal_thickness_action(self):
+#        self.toolButtonSetNormalThickness
+        self.hide_druse_split_tools()
+        if(self.sizingToolsEnabled):
+            self.disable_size_tools()
+        if(self.lastClickedButton is not None and self.lastClickedButton is\
+                not self.toolButtonSetNormalThickness):
+            self.lastClickedButton.setChecked(False)
+        self.toolButtonSetNormalThickness.setChecked(True)
+        self.lastClickedButton=self.toolButtonSetNormalThickness
+        self.controller.write_in_log(self.controller.get_time()+','+\
+            self.toolButtonSetNormalThickness.objectName()+','+\
+            self.get_current_active_window()+'\n')
+        self.enable_set_normal_thickness_tools()
+#        self.controller.activate_morphology(self.morghologyValue)
+        
     def draw_dru_action(self):
         if(self.sizingToolsEnabled):
             self.disable_size_tools()
@@ -1140,6 +1185,7 @@ class Ui_toolBox(object):
         self.controller.write_in_log(self.controller.get_time()+','+\
             self.toolButtonSpline.objectName()+','+\
             self.get_current_active_window()+'\n')
+            
     def curve_to_spline(self):
         self.controller.curve_to_spline()
         
@@ -1259,6 +1305,7 @@ class Ui_toolBox(object):
         self.toolButtonUnCheckComp.setDisabled(True)
         self.toolButtonCheckComp.setDisabled(True)
         self.toolButtonMorphology.setDisabled(True)
+        self.toolButtonSetNormalThickness.setDisabled(True)
         self.toolButtonDrawDru.setDisabled(True)
         self.toolButtonFilterDru.setDisabled(True)
         self.toolButtonSplitDrusen.setDisabled(True)
@@ -1358,6 +1405,7 @@ class Ui_toolBox(object):
         self.toolButtonDrawDru.setDisabled(False)
         self.toolButtonFill.setDisabled(False)
         self.toolButtonMorphology.setDisabled(False)
+        self.toolButtonSetNormalThickness.setDisabled(False)
         self.toolButtonFilterDru.setDisabled(False)
         
         self.toolButtonGrab.setDisabled(False)
@@ -1410,6 +1458,22 @@ class Ui_toolBox(object):
         self.toolBox.update()
         self.update_further()
     
+    def enable_set_normal_thickness_tools(self):
+        self.horizontalSlider_size1.setValue(self.normalThicknessValue)
+        self.spinBox_size1.setValue(self.normalThicknessValue)
+        self.label_size1.setText(_translate("toolBox", "Size", None))
+        self.label_size1.show()
+        self.horizontalSlider_size1.show()
+        self.label_7.show()
+        self.spinBox_size1.show()
+        self.toolButtonFilterDruImm.show()
+        self.sizingToolsEnabled=True
+        
+        self.toolBox.setMinimumSize(QtCore.QSize(249, 550))
+        self.toolBox.resize(249, 550)
+        self.toolBox.update()
+        self.update_further()
+        
     def enable_dru_spliting_tools(self):
         self.show_druse_split_tools()
         
@@ -1497,6 +1561,7 @@ class Ui_toolBox(object):
         self.toolButtonDrawDru.setDisabled(False)
         self.toolButtonFill.setDisabled(False)
         self.toolButtonMorphology.setDisabled(False)
+        self.toolButtonSetNormalThickness.setDisabled(False)
         self.toolButtonFilterDru.setDisabled(False)
         self.toolButtonGrab.setDisabled(False)
         self.label_4.show()
@@ -1510,6 +1575,7 @@ class Ui_toolBox(object):
         self.toolButtonDrawDru.setDisabled(False)
         self.toolButtonFill.setDisabled(False)
         self.toolButtonMorphology.setDisabled(False)
+        self.toolButtonSetNormalThickness.setDisabled(False)
         self.toolButtonBBox.setDisabled(False)     
         self.label.show()   
         self.horizontalSliderBscan.show()
@@ -1595,6 +1661,8 @@ class Ui_toolBox(object):
             self.enable_dru_filter_tools()
         if(self.toolButtonMorphology.isChecked()):
             self.enable_morphology_tools()
+        if(self.toolButtonSetNormalThickness.isChecked()):
+            self.enable_set_normal_thickness_tools()
             
     def enface_editing_selected(self):
         self.disable_all()
@@ -1617,6 +1685,8 @@ class Ui_toolBox(object):
             self.enable_dru_filter_tools()
         if(self.toolButtonMorphology.isChecked()):
             self.enable_morphology_tools()
+        if(self.toolButtonSetNormalThickness.isChecked()):
+            self.enable_set_normal_thickness_tools()
             
     def hrf_editing_selected(self):
         self.disable_all()
@@ -1660,6 +1730,9 @@ class Ui_toolBox(object):
         elif(self.lastClickedButton is self.toolButtonMorphology):
             self.morghologyValue=value
             self.controller.morphology_value_changed(self.morghologyValue)
+        elif(self.lastClickedButton is self.toolButtonSetNormalThickness):
+            self.normalThicknessValue=value
+            self.controller.normal_thickness_value_changed(self.normalThicknessValue)
         elif(self.lastClickedButton is self.toolButtonPolyFit):
             self.polyFitDegreeValue=value
             self.controller.poly_fit_degree_value_changed(self.polyFitDegreeValue)
@@ -1683,6 +1756,9 @@ class Ui_toolBox(object):
         elif(self.lastClickedButton is self.toolButtonMorphology):
             self.morghologyValue=value
             self.controller.morphology_value_changed(self.morghologyValue)
+        elif(self.lastClickedButton is self.toolButtonSetNormalThickness):
+            self.normalThicknessValue=value
+            self.controller.normal_thickness_value_changed(self.normalThicknessValue)
         elif(self.lastClickedButton is self.toolButtonPolyFit):
             self.polyFitDegreeValue=value
             self.controller.poly_fit_degree_value_changed(self.polyFitDegreeValue)
