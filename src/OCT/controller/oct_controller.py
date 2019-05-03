@@ -7,8 +7,11 @@ Created in 2018
 
 
 import time
+import shutil
 import numpy as np
 import scipy as sc
+import pandas as pd
+from scipy import misc
 import os, sys, inspect
 import qimage2ndarray as q2np
 
@@ -238,7 +241,7 @@ class OCTController:
             self.showSuggestedSegmentation['RPE']=np.ones((layers.shape[2]),dtype=bool)
             self.showSuggestedSegmentation['BM']=np.ones((layers.shape[2]),dtype=bool)
             self.mainWindowUi.set_edited_layers(self.oct.get_edited_layers())
-            
+        
     def get_hrf_bounding_boxes(self):
         return self.mainWindowUi.get_hrf_bounding_boxes()
         
@@ -1587,11 +1590,8 @@ class OCTController:
             tmp=np.copy(dReg)
             # First filter druse with filteringHeight
             heightProjection=np.sum((dReg>0).astype(int),axis=0)
-            print heightProjection.shape
-            print " in filter_drusen_wrt_height: ", maxFilteringHeight
-            
             dReg[:,heightProjection<=filteringHeight]=0.          
-            print dReg.shape
+
             # Filter drusen with maxFilteringHeight
             dReg=self.oct.filter_druse_by_max_height(dReg,maxFilteringHeight)
             xs,ys,zs=np.where(dReg!=tmp)
@@ -2243,46 +2243,177 @@ class OCTController:
         
     def run_layer_drusen_analysis_over_a_set_of_data(self,readPath):
         dirs = [f for f in os.listdir(readPath)]   
+        logFile=open('/home/gorgi/Desktop/unprocessed-Files.txt','w')
+        getDrusenLoad=True
+        dLoad={'ID':list(),'DrusenLoad (px^3)':list(),'Drusen Load (um^3)':list()}
+#        df=pd.DataFrame(data={'ID':list(),'DrusenLoad (px^3)':list(),'Drusen Load (um^3)':list()})
+#        ff=False
         for d in dirs:
-            
-            # Read the scan
             scanPath=readPath+d+os.sep
-            if(os.path.exists(scanPath+'drusen-analysis')):
-                print "Skip:",scanPath
-                continue
-            print scanPath
-            
-            self.delete_previous()
-            self.lastScanPath=scanPath
-            self.oct.set_scan_path(scanPath)
-            self.oct.read_scan_from(scanPath)
-            if(self.oct.scans is None):
-                print "Skip:",scanPath 
-                continue
-            # Find layers
-            self.oct.get_layers()
-            self.currentLayerNumber=1
-            print scanPath
-            # Find drusen
-            self.currentDrusenNumber=1
-            self.oct.get_drusen(2)
-
-            # Compute enface drusen
-            self.oct.get_enface()
-            self.oct.get_enface_drusen()
+            try:
+                if(not getDrusenLoad):
+                    # Read the scan
+                    if(os.path.exists(scanPath+'drusen-analysis')):
+                        print "Skip:",scanPath
+    #                    ff=True
+                        continue
+                print scanPath
+#                if(ff):
+#                    print "----------------------------------"
+#                    exit()
+                self.delete_previous()
+                self.lastScanPath=scanPath
+                self.oct.set_scan_path(scanPath)
+                self.oct.read_scan_from(scanPath)
+                if(self.oct.scans is None):
+                    print "Skip:",scanPath 
+                    continue
+                
+                if(self.oct.scans.shape[1]>600):
+                    self.oct.set_num_of_tiles(4)
+                else:
+                    self.oct.set_num_of_tiles(2)
+                # Find layers
+                self.oct.get_layers()
+                self.currentLayerNumber=1
+                print scanPath
+                
+                # Find drusen
+                self.currentDrusenNumber=1
+                self.oct.get_drusen(2)
+                if(not getDrusenLoad):
+                    # Compute enface drusen
+                    self.oct.get_enface()
+                    self.oct.get_enface_drusen()
+                
+                    # Quantify drusen
+                    self.oct.quantify_drusen()
+                    
+                    # SaveLayers
+                    self.oct.save_layers(scanPath)
+                    self.oct.save_drusen(scanPath)
+                    self.oct.save_drusen_quantification(scanPath)
+                else:
+                    lpx,lum=self.oct.compute_drusen_load_in_px_and_um()
+                    dLoad['ID'].append(d)
+                    dLoad['DrusenLoad (px^3)'].append(lpx)
+                    dLoad['Drusen Load (um^3)'].append(lum)
+                    print lpx,lum
+                    print dLoad
+                        
+            except:
+                logFile.write(scanPath+'\n')
+        df=pd.DataFrame.from_dict(dLoad)
+        df.to_csv('/home/gorgi/Desktop/Susanne.csv',index=False)
+        logFile.close()
         
-            # Quantify drusen
-            self.oct.quantify_drusen()
-            
-            # SaveLayers
-            self.oct.save_layers(scanPath)
-            self.oct.save_drusen(scanPath)
-            self.oct.save_drusen_quantification(scanPath)
-            
+    def run_layer_drusen_analysis_over_a_set_of_data_heidelberg_eng(self,readPath):
+        logFile=open('/home/gorgi/Desktop/processed-Files.txt','w')
+        dirs = [f for f in os.listdir(readPath)]   
+        for d1 in dirs:
+            dirs2=[f for f in os.listdir(readPath+os.sep+d1)]   
+            for d2 in dirs2:
+                dirs3=[f for f in os.listdir(readPath+os.sep+d1+os.sep+d2)]       
+                for d3 in dirs3:
+                    
+                    # Read the scan
+                    scanPath=readPath+os.sep+d1+os.sep+d2+os.sep+d3
+                   
+                    print scanPath
+                    shutil.rmtree(scanPath+os.sep+'layers')
+                    shutil.rmtree(scanPath+os.sep+'drusen')
+                    if os.path.exists(scanPath+os.sep+'enface.png'):
+                        os.remove(scanPath+os.sep+'enface.png')
+                        
+                    self.delete_previous()
+                    self.lastScanPath=scanPath
+                    self.oct.set_scan_path(scanPath)
+                    self.oct.read_scan_from(scanPath)
+                    if(self.oct.scans is None):
+                        print "Skip:",scanPath 
+                        continue
+                    
+                    # Find layers
+                    self.oct.get_layers()
+                    self.currentLayerNumber=1
+                    print scanPath
+                    
+                    # Find drusen
+                    self.currentDrusenNumber=1
+                    self.oct.get_drusen(2)
+        
+                    # Compute enface drusen
+                    self.oct.get_enface()
+                    self.oct.get_enface_drusen()
+                
+                    # Quantify drusen
+                    self.oct.quantify_drusen()
+                    
+                    # SaveLayers
+                    self.oct.save_layers(scanPath)
+                    self.oct.save_drusen(scanPath)
+                    self.oct.save_drusen_quantification(scanPath)
+                    
+                    logFile.write(readPath+os.sep+d1+os.sep+d2+os.sep+d3+'\n')
+        logFile.close()
+        
+    def create_data_for_drusen_segmenter(self,readPath,savePath):
+        logFile=open('/home/gorgi/Desktop/processed-Files.txt','w')
+        dirs = [f for f in os.listdir(readPath)]   
+        for d1 in dirs:
+            dirs2=[f for f in os.listdir(readPath+os.sep+d1)]   
+            for d2 in dirs2:
+                dirs3=[f for f in os.listdir(readPath+os.sep+d1+os.sep+d2)]       
+                for d3 in dirs3:
+                    
+                    # Read the scan
+                    scanPath=readPath+os.sep+d1+os.sep+d2+os.sep+d3
+                   
+                    print scanPath
+                        
+                    self.delete_previous()
+                    self.lastScanPath=scanPath
+                    self.oct.set_scan_path(scanPath)
+                    self.oct.read_scan_from(scanPath)
+                    if(self.oct.scans is None):
+                        print "Skip:",scanPath 
+                        continue
+                    
+                    # Find layers
+                    layers=self.oct.get_layers()
+                    self.currentLayerNumber=1
+                    print scanPath
+                    
+                    # Find drusen
+                    self.currentDrusenNumber=1
+                    self.oct.get_drusen(2)
+        
+                    # Compute enface drusen
+                    enface=self.oct.get_enface()[0]
+                    drusenEnface=self.oct.get_enface_drusen()
+                    
+                    # Create RPE and BM images
+                    enfaceRPE=self.oct.get_enface_RPE()
+                    enfaceBM=self.oct.get_enface_BM()
+                    saveDir=savePath+os.sep+d1+os.sep+d2+os.sep+d3+os.sep
+                    self.oct.create_directory(saveDir)
+                    misc.imsave(saveDir+'enface.tif',enface)
+                    misc.imsave(saveDir+'enface-drusen.tif',drusenEnface)
+                    misc.imsave(saveDir+'enface-rpe.tif',enfaceRPE)
+                    misc.imsave(saveDir+'enface-bm.tif',enfaceBM)
+                    logFile.write(readPath+os.sep+d1+os.sep+d2+os.sep+d3+'\n')
+        logFile.close()
 if __name__ == "__main__":
     import sys
     app = QtGui.QApplication(sys.argv)
     octController=OCTController(app)
-#    octController.mainWindow.show()
+#==============================================================================
+#     octController.run_layer_drusen_analysis_over_a_set_of_data(\
+#         "/home/gorgi/Desktop/DataFromUniClinic/DrusenVolume-Susanne-Cohort/Data/")
+#     octController.create_data_for_drusen_segmenter(\
+#         "/home/gorgi/Desktop/DataProducedFromUNet/OCT-DataSet/",\
+#         "/home/gorgi/Desktop/DataProducedFromUNet/OCT-Data-For-DrusenSegmenter/")
+#     octController.mainWindow.show()
+#==============================================================================
     octController.mainWindow.showMaximized()
     sys.exit(app.exec_())

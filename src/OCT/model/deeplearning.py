@@ -141,6 +141,7 @@ class DeepLearningLayerSeg:
         self.entropyMethod='probFreq'
         
         
+        
         colors1 = [(255/255.,0/255.,0/255.),(227/255.,128/255.,0/255.),\
                     (212/255.,162/255.,40/255.),(219/255.,173/255.,110/255.),\
                     (209/255.,198/255.,179/255.)]
@@ -191,12 +192,19 @@ class DeepLearningLayerSeg:
         self.scaleImage=sett['scaleImage']
         self.zeroCenter=sett['zeroCenter']
         self.numOfTiles=sett['numOfTiles']
+        if(not self.octScan.numTiles is None):
+            #Override number of tiles
+            self.numOfTiles=self.octScan.numTiles
+            
         self.caffePath =sett['caffePath']
         self.trainModelFile=sett['trainModelFile']
         self.modelFile=sett['modelFile']
         self.downSampleFactor=sett['downSampleFactor']
         self.d4a_size=sett['d4a_size']
         return    
+        
+    def set_number_of_tiles(self,num):
+        self.numOfTiles=num
         
     def set_uncertainties(self,uncertainties,sliceNumZ):
         if(uncertainties[0] is None):

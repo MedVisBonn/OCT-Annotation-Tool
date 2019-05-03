@@ -8,6 +8,7 @@ import re
 import os
 import copy
 import pickle
+import HTMLParser
 import numpy as np
 import scipy as sc
 import pandas as pd
@@ -60,6 +61,8 @@ class OCT:
         self.uncerProRPE=None
         self.uncerEntBM=None
         self.uncerProBM=None
+        self.enfaceRPE=None
+        self.enfaceBM=None
         
         # Probable layers
         self.rpeCSPs=None
@@ -108,6 +111,11 @@ class OCT:
         self.evaluateLayers=False
         self.evaluateDrusen=False
         
+        self.numTiles=None
+    
+    def set_num_of_tiles(self,num):
+        self.numTiles=num
+        
     def set_rpe_suggest_show(self,status):
         self.rpeSuggestShow=status       
         
@@ -118,7 +126,13 @@ class OCT:
         if(not self.rpeCSPs is None and not self.rpeCSPs[sliceNumZ] is None):
             return self.rpeCSPs[sliceNumZ]
         return None
-        
+    
+    def get_enface_RPE(self):
+        return self.enfaceRPE
+    
+    def get_enface_BM(self):
+        return self.enfaceBM    
+    
     def get_num_scans(self):
         return self.numSlices
         
@@ -944,6 +958,23 @@ class OCT:
             self.editedLayers.append(e)
         if(self.evaluateLayers):
             self.get_GT_layers()
+        
+        if(False):
+            #Visualize enface layers        
+            rpeImg=np.zeros(self.layers.shape)
+            bmImg=np.zeros(self.layers.shape)
+            rpeImg[self.layers==255]=1.0
+            rpeImg[self.layers==170]=1.0
+            bmImg[self.layers==127]=1.0
+            bmImg[self.layers==170]=1.0
+            bmImg[self.layers==85]=1.0
+            enfaceRPE=self.layers.shape[0]-np.argmax(rpeImg,axis=0)
+            enfaceBM=self.layers.shape[0]-np.argmax(bmImg,axis=0)
+        
+            # Normalize
+            self.enfaceRPE=enfaceRPE.T/float(self.layers.shape[0])
+            self.enfaceBM=enfaceBM.T/float(self.layers.shape[0])
+
         return self.layers
         
     def get_prob_maps(self):
@@ -1637,14 +1668,31 @@ class OCT:
         for p in xml_files:
             img_paths.append(path + os.path.sep)
             
-        
+        imgScalesInMicroMeter=dict()
         #Construct the images
         for index in range(len(xml_files)):
-        
+            ftext=open(xml_files[index],'r')
+            textToParse=ftext.read()
+
+            textToParse=textToParse.replace('\xe4','ae')
+            textToParse=textToParse.replace('\xf6','oe')
+            textToParse=textToParse.replace('\xfc','ue')
+            textToParse=textToParse.replace('\xdf','ss')
+            textToParse=textToParse.replace('\xc4','Ae')
+            textToParse=textToParse.replace('\xd6','Oe')
+            textToParse=textToParse.replace('\xdc','Ue')
+            textToParse=textToParse.replace('\xdf','Ss')
+            textToParse=textToParse.replace('\xe9','Ss') 
+            tmp=open(path + os.path.sep+'tmp.xml','w')
+            tmp.write(textToParse)
+            tmp.close()
+            
             #Read in the XML file and store the root in root
-            tree = ET.parse(xml_files[index])
+            tree = ET.parse(path + os.path.sep+'tmp.xml')
             root = tree.getroot()
-    
+            
+            os.remove(path + os.path.sep+'tmp.xml')
+            
             #Search for the image information in the file
             for img in root.iter('Image'):
                 
@@ -1697,13 +1745,22 @@ class OCT:
                 #Create the image name and save it if it exists
                 img_name = str(img_id) + '-layers.png'
                 os.chdir(img_paths[index])
+                if(img_id!=0): # If image is B-scan
+                    # Find scale information that are in milimeter
+                    scaleX=float(img.find('OphthalmicAcquisitionContext').find('ScaleX').text)
+                    scaleY=float(img.find('OphthalmicAcquisitionContext').find('ScaleY').text)
+                    posY=float(img.find('OphthalmicAcquisitionContext').find('Start').find('Coord').find('Y').text)
+                    imgScalesInMicroMeter[img_id]=[scaleX,scaleY,posY]
                 try:
+                    
                     img_layer=self.convert_indices(img_layer)
 #                    cv2.imwrite(img_name,img_layer)
                     misc.imsave(img_name,img_layer)
                 except:
+                    #In case of fundus image, skip the rest
                     if(img_id==0):
                         continue
+                    
     
                 #Rename the input image:
                 os.chdir(directory + os.path.sep + img_paths[index].split(os.path.sep)[-1])
@@ -1713,13 +1770,95 @@ class OCT:
                     os.rename(old_name, new_name)
                 except:
                     continue
+        scalesX=list()
+        scalesY=list()
+        posY=list()
+        for k in sorted(imgScalesInMicroMeter.keys()):
+            a,b,c=imgScalesInMicroMeter[k]
+            scalesX.append(a)
+            scalesY.append(b)
+            posY.append(c)
+        posY=np.asarray(posY)
+        scalesZ=np.abs(posY[1:]-posY[:-1])
+        
+        self.hx=np.mean(np.asarray(scalesX))*1000.
+        self.hy=np.mean(np.asarray(scalesY))*1000.
+        self.hz=np.mean(np.asarray(scalesZ))*1000.
+        
         fnames=[f for f in listdir(directory) if isfile(join(directory, f))]
+       
         for f in fnames:
             ftype = f.split('-')[-1]
             if(ftype!="Input.tif"):
                 fFormat = f.split('.')[-1]
                 if(fFormat=='tif'):
+#                    print f
                     os.rename(f,"fundus.tif")
+    
+    def extract_scale(self,directory):
+        '''This function takes a directory containing different folders with OCT scan information as input and 
+        constructs for each image in the different subfolders a corresponding image displaying only the layer 
+        specified in the input.'''
+        
+        
+        #Get the path to all the xml_files
+        xml_files = self.get_xml_files(directory)
+        if(len(xml_files)==0):
+            return
+            
+        imgScalesInMicroMeter=dict()
+        #Construct the images
+        for index in range(len(xml_files)):
+            ftext=open(xml_files[index],'r')
+            textToParse=ftext.read()
+
+            textToParse=textToParse.replace('\xe4','ae')
+            textToParse=textToParse.replace('\xf6','oe')
+            textToParse=textToParse.replace('\xfc','ue')
+            textToParse=textToParse.replace('\xdf','ss')
+            textToParse=textToParse.replace('\xc4','Ae')
+            textToParse=textToParse.replace('\xd6','Oe')
+            textToParse=textToParse.replace('\xdc','Ue')
+            textToParse=textToParse.replace('\xdf','Ss')
+            textToParse=textToParse.replace('\xe9','Ss') 
+            tmp=open(directory + os.path.sep+'tmp.xml','w')
+            tmp.write(textToParse)
+            tmp.close()
+            
+            #Read in the XML file and store the root in root
+            tree = ET.parse(directory + os.path.sep+'tmp.xml')
+            root = tree.getroot()
+            
+            os.remove(directory + os.path.sep+'tmp.xml')
+            
+            #Search for the image information in the file
+            for img in root.iter('Image'):
+                
+                img_id = int(img.find('ID').text)
+                     
+                if(img_id!=0): # If image is B-scan
+                    # Find scale information that are in milimeter
+                    scaleX=float(img.find('OphthalmicAcquisitionContext').find('ScaleX').text)
+                    scaleY=float(img.find('OphthalmicAcquisitionContext').find('ScaleY').text)
+                    posY=float(img.find('OphthalmicAcquisitionContext').find('Start').find('Coord').find('Y').text)
+                    imgScalesInMicroMeter[img_id]=[scaleX,scaleY,posY]
+              
+               
+        scalesX=list()
+        scalesY=list()
+        posY=list()
+        for k in sorted(imgScalesInMicroMeter.keys()):
+            a,b,c=imgScalesInMicroMeter[k]
+            scalesX.append(a)
+            scalesY.append(b)
+            posY.append(c)
+        posY=np.asarray(posY)
+        scalesZ=np.abs(posY[1:]-posY[:-1])
+        
+        self.hx=np.mean(np.asarray(scalesX))*1000.
+        self.hy=np.mean(np.asarray(scalesY))*1000.
+        self.hz=np.mean(np.asarray(scalesZ))*1000.
+        
     def rgb_to_gray(self,img):
         if(len(img.shape)==3):
             return 0.299*img[:,:,0] + 0.587*img[:,:,1] + 0.114*img[:,:,2]
@@ -1736,6 +1875,7 @@ class OCT:
         
         # If heidelberg format, make necessary changes
         self.convert_heidelberg_eng_format(scanPath,['BM','RPE'])
+        self.extract_scale(scanPath)
         
         for root,dirs,files in os.walk(scanPath):
             depth=len(scanPath.split(os.path.sep))
@@ -1793,7 +1933,10 @@ class OCT:
         else:
             self.zRate=13
             self.bResolution='low'
-    
+        meanScanIntensity=np.mean(self.scans)
+        # Invert if too bright
+        if(meanScanIntensity>180):
+            self.scans=255-self.scans
     def insert_druse_at_with_normal_thickness(self,slices,posY,thickness):
         if(len(slices)>0):
             prevValues=np.copy(self.drusen[:,posY,slices])
@@ -2155,21 +2298,18 @@ class OCT:
     def filter_druse_by_max_height(self,drusenImg,maxHeight):
         if(maxHeight==0):
             return drusenImg
-        print "==>",drusenImg.shape
         if(len(drusenImg.shape)<3):
             cca, num_drusen = sc.ndimage.measurements.label( drusenImg )
             h  = self.compute_component_max_height( cca )
-#            self.show_image(h)
             drusenImg[np.where(h<=maxHeight)] = 0.0
         else:
             heightProjection=np.sum((drusenImg>0).astype(int),axis=0)
-            self.show_image(heightProjection)
+            
             cca, num_drusen = sc.ndimage.measurements.\
                                       label((heightProjection>0).astype('int'))
             h  = self.compute_component_max_height(cca,heightProjection)
-#            self.show_image(h)
             heightProjection[np.where(h<=maxHeight)] = 0.0
-            self.show_image(heightProjection)
+            
             y,s=np.where(heightProjection==0)
             drusenImg[:,y,s]=0.
         return drusenImg
@@ -2808,3 +2948,9 @@ class OCT:
         """
         if not os.path.exists(path):
             os.makedirs(path)
+    
+    def compute_drusen_load_in_px_and_um(self):
+        drusenLoad=np.sum((self.drusen>0).astype(int))
+        umCoeff=self.hx*self.hy*self.hz
+        drusenLoadInUM=drusenLoad*umCoeff
+        return drusenLoad,drusenLoadInUM

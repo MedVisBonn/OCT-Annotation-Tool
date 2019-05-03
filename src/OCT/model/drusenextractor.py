@@ -15,6 +15,8 @@ class DrusenSeg:
     def __init__(self,controller=None):
         self.drusen=list()
         self.controller=controller
+        self.lambdaVec=[1.,1.,0.1*2,0.1**4] 
+        self.polyFitType='Reguilarized' # 'Reguilarized' or 'None'
         
     def get_drusen_seg_polyfit(self,layers):
         """
@@ -135,11 +137,15 @@ class DrusenSeg:
                 
                 sx = tmpx[rand]
                 sy = tmpy[rand]
-                
-                z = np.polyfit(sx, sy, deg = degree)
-                
+                if(self.polyFitType=='None'):
+                    z = np.polyfit(sx, sy, deg = degree)
+                else:
+                    z = self.compute_reguilarized_fit(sx, sy, deg = degree)
             else:
-                z = np.polyfit(tmpx, tmpy, deg = degree)
+                if(self.polyFitType=='None'):
+                    z = np.polyfit(tmpx, tmpy, deg = degree)
+                else:
+                    z = self.compute_reguilarized_fit(tmpx, tmpy, deg = degree)
             p = np.poly1d(z)
             
             new_y = p(finalx).astype('int')
@@ -157,7 +163,18 @@ class DrusenSeg:
                
         return finaly, finalx
         
-    
+    def compute_reguilarized_fit(self,x,y,deg):
+        resMat=np.zeros((deg+1,deg+1))
+        for d in range(deg+1):
+            z=np.polyfit(x, y, deg = d)            
+            for i in range(len(z)):
+                resMat[d,-1-i]=z[-1-i]
+#        print "======="
+#        print resMat
+        weightedAvg=np.average(resMat,axis=0,weights=self.lambdaVec)
+#        print weightedAvg
+        return weightedAvg
+        
     def normal_RPE_estimation(self,layer,degree = 3,it = 3,s_ratio = 1, \
                             farDiff = 5, ignoreFarPoints=True, returnImg=False,\
                             useBM = False,useWarping=True,xloc=[],yloc=[]):   
@@ -176,7 +193,11 @@ class DrusenSeg:
             y_b, x_b = self.get_BM_location( layer ) 
             y_r, x_r = self.get_RPE_location( layer )  
             
-            z = np.polyfit(x_b, y_b, deg = degree)            
+            if(self.polyFitType=='None'):
+                z = np.polyfit(x_b, y_b, deg = degree)        
+            else:
+                z = self.compute_reguilarized_fit(x_b, y_b, deg = degree)            
+                
             p = np.poly1d(z)        
             y_b = p(x_r).astype('int')
             
@@ -227,11 +248,15 @@ class DrusenSeg:
                 
                 sx = tmpx[rand]
                 sy = tmpy[rand]
-                
-                z = np.polyfit(sx, sy, deg = degree)
-                
+                if(self.polyFitType=='None'):
+                    z = np.polyfit(sx, sy, deg = degree)
+                else:
+                    z = self.compute_reguilarized_fit(sx, sy, deg = degree)
             else:
-                z = np.polyfit(tmpx, tmpy, deg = degree)
+                if(self.polyFitType=='None'):
+                    z = np.polyfit(tmpx, tmpy, deg = degree)
+                else:
+                    z = self.compute_reguilarized_fit(tmpx, tmpy, deg = degree)
             p = np.poly1d(z)
             
             new_y = p(finalx).astype('int')
