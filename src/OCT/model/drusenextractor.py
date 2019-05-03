@@ -115,7 +115,7 @@ class DrusenSeg:
             y, x = np.where(tmp==255)
         return y, x
         
-    def poly_fit(self,x,y,degree=3,it=3,farDiff=5,s_ratio = 1):
+    def poly_fit(self,x,y,degree=3,it=3,farDiff=5,s_ratio = 1,usePolyFitType=True):
         """
         Fit a polynomial to the given layer as x and y locations. Use the given
         input degree, iterations to fit a polynomial and farDiff to ignore pixels
@@ -129,6 +129,10 @@ class DrusenSeg:
         finalx = np.copy(tmpx)
         finaly = tmpy
         
+        if(usePolyFitType):
+            polyFitType=self.polyFitType
+        else:
+            polyFitType='None'
         for i in range(it):
             if( s_ratio > 1 ):
                 s_rate = len(tmpx)/s_ratio
@@ -137,12 +141,12 @@ class DrusenSeg:
                 
                 sx = tmpx[rand]
                 sy = tmpy[rand]
-                if(self.polyFitType=='None'):
+                if(polyFitType=='None'):
                     z = np.polyfit(sx, sy, deg = degree)
                 else:
                     z = self.compute_reguilarized_fit(sx, sy, deg = degree)
             else:
-                if(self.polyFitType=='None'):
+                if(polyFitType=='None'):
                     z = np.polyfit(tmpx, tmpy, deg = degree)
                 else:
                     z = self.compute_reguilarized_fit(tmpx, tmpy, deg = degree)
@@ -419,7 +423,7 @@ class DrusenSeg:
         elif(layerName=='BM'):
             yb,xb=self.get_BM_location(reg)
             if(len(yb)>0):
-                yn,xn=self.poly_fit(xb,yb,polyDegree)
+                yn,xn=self.poly_fit(xb,yb,polyDegree,usePolyFitType=False)
                 yr,xr=self.get_RPE_location(reg)
                 finImg=self.draw_layers_in_image(reg.shape[0],reg.shape[1],xr,yr,xn,yn)
         return finImg
