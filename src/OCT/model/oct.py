@@ -1702,7 +1702,8 @@ class OCT:
 #                    cv2.imwrite(img_name,img_layer)
                     misc.imsave(img_name,img_layer)
                 except:
-                    continue
+                    if(img_id==0):
+                        continue
     
                 #Rename the input image:
                 os.chdir(directory + os.path.sep + img_paths[index].split(os.path.sep)[-1])
@@ -2154,18 +2155,21 @@ class OCT:
     def filter_druse_by_max_height(self,drusenImg,maxHeight):
         if(maxHeight==0):
             return drusenImg
+        print "==>",drusenImg.shape
         if(len(drusenImg.shape)<3):
             cca, num_drusen = sc.ndimage.measurements.label( drusenImg )
             h  = self.compute_component_max_height( cca )
+#            self.show_image(h)
             drusenImg[np.where(h<=maxHeight)] = 0.0
         else:
             heightProjection=np.sum((drusenImg>0).astype(int),axis=0)
-            
+            self.show_image(heightProjection)
             cca, num_drusen = sc.ndimage.measurements.\
                                       label((heightProjection>0).astype('int'))
             h  = self.compute_component_max_height(cca,heightProjection)
+#            self.show_image(h)
             heightProjection[np.where(h<=maxHeight)] = 0.0
-            
+            self.show_image(heightProjection)
             y,s=np.where(heightProjection==0)
             drusenImg[:,y,s]=0.
         return drusenImg

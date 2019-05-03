@@ -1047,8 +1047,12 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
     def apply_height_thresholds(self):
         image=self.mainPhoto
         h,w=image.shape[0],image.shape[1]
+        print "========================================="
+        print "filteringHeight is:", self.filteringHeight
+        print "maxFilteringHeight is:", self.maxFilteringHeight
+        print "extra height?? :",self.filterHeight
         image=self.controller.filter_drusen_wrt_height(image,\
-            self.filteringHeight,self.maxFilteringHeight,0,0,w-1,h-1,self.etype)
+            self.filteringHeight,self.maxFilteringHeight,0,0,w,h,self.etype)
         self.set_main_photo(image)
         self.combine_images()
         self.update()    

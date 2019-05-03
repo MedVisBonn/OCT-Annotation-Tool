@@ -174,7 +174,7 @@ class OCTController:
                 scanPath="/home/gorgi/Desktop/Data/Data/210715_145"
             else:
 #                scanPath="/home/gorgi/Desktop/OCT-UnderExtention/OCT/dummyData/210715_145"
-                scanPath="/home/gorgi/Desktop/OCT-Editting-November-ForMaximilian/OCT-Editing-Tool/src/OCT/dummyData/210715_145"
+                scanPath="/home/gorgi/Desktop/OCT-Editting-November-ForMaximilian/OCT-Editing-Tool/src/OCT/dummyData/220814_145"
             self.lastScanPath=scanPath
         else:
             scanPath=self.mainWindowUi.get_scan_path(self.lastScanPath)
@@ -1587,8 +1587,11 @@ class OCTController:
             tmp=np.copy(dReg)
             # First filter druse with filteringHeight
             heightProjection=np.sum((dReg>0).astype(int),axis=0)
+            print heightProjection.shape
+            print " in filter_drusen_wrt_height: ", maxFilteringHeight
+            
             dReg[:,heightProjection<=filteringHeight]=0.          
-
+            print dReg.shape
             # Filter drusen with maxFilteringHeight
             dReg=self.oct.filter_druse_by_max_height(dReg,maxFilteringHeight)
             xs,ys,zs=np.where(dReg!=tmp)
