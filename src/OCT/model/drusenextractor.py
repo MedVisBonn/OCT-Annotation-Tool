@@ -407,7 +407,7 @@ class DrusenSeg:
             borderHint[yr,xr]=1
             yr,xr=np.where(borderHint[1:-1,1:-1]>0)
             if(len(yr)>0):
-                yn,xn=self.poly_fit(xr,yr,polyDegree)
+                yn,xn=self.poly_fit(xr,yr,polyDegree,usePolyFitType=False)
                 tmp=np.empty(reg.shape)
                 tmp.fill(0)
                 tmp[yn+1,xn+1]=1
