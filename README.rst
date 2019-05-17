@@ -18,7 +18,7 @@ Additionally required modules are PyQt4 and caffe with U-Net patch included. The
 
 * PyQt4: http://pyqt.sourceforge.net/Docs/PyQt4/installation.html
 
-* caffe: https://lmb.informatik.uni-freiburg.de/resources/opensource/caffe_unet_3D_v1.0.tar.gz
+* caffe: You need to select the U-Net patch for your CUDA and cuDNN version from https://lmb.informatik.uni-freiburg.de/resources/opensource/unet/ .
 
 For caffe installation, follow the instructions in the README file in the zipped file. 
 
