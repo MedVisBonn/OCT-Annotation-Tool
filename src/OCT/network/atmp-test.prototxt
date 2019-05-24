@@ -1,7 +1,7 @@
 input: "data"
 input_dim: 1
 input_dim: 1
-input_dim: 444
+input_dim: 252
 input_dim: 700
 state: { phase: TEST }
 name: "aphseg_v5_test"
