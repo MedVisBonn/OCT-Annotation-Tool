@@ -4,11 +4,14 @@ Created in 2018
 
 @author: Shekoufeh Gorgi Zadeh
 """
+import logging
+
 import re
 import os
 import copy
 import pickle
 import HTMLParser
+import imageio
 import numpy as np
 import scipy as sc
 import pandas as pd
@@ -23,6 +26,15 @@ from matplotlib import pyplot as plt
 
 import deeplearning
 import drusenextractor
+import iovol
+
+
+# Logging setup for file
+logging.basicConfig(filename=os.path.join(os.path.expanduser('~'), 'octannotation.log'),
+                   ormat='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                   level=logging.DEBUG,
+                   filemode='w')
+logger = logging.getLogger('OCT')
 
 octParams = dict()
 octParams['bResolution'] = 'high' #high
@@ -249,7 +261,14 @@ class OCT:
             elif(uncertaintyType=='Probability'):
                 return self.uncerProBM
         return None
-        
+
+    def save_bscans(self, savePath):
+        if self.scans is not None:
+            logger.debug('{},{}'.format(np.max(self.scans), self.scans.dtype))
+            for i in range(self.scans.shape[2]):
+                scan_path = os.path.join(savePath, str(i)+'.tif')
+                imageio.imwrite(scan_path, self.scans[:, :, i].astype(np.int8))
+
     def save_drusen(self,savePath):
         savePath=os.path.join(savePath,'drusen')
         
@@ -265,24 +284,6 @@ class OCT:
                     self.controller.update_progress_bar_value(pStep)
                     misc.imsave(os.path.join(savePath,str(self.scanIDs[s])+\
                         '-drusen.png'),self.drusen[:,:,s])
-                self.controller.hide_progress_bar()   
-                
-    def save_drusen_as(self,saveName):
-        if(self.drusen is not None):
-            if(self.saveFormat=='pkl'):
-                druLoc=np.where(self.drusen>0)
-                self.write_pickle_data(saveName,druLoc) 
-            else:
-                savePath,saveName=os.path.split(saveName)
-                savePath=os.path.join(savePath,'drusen')
-                
-                saveName=saveName.split('.')[0]
-                self.controller.show_progress_bar("Saving")
-                pStep=100/float(max(1,self.drusen.shape[2]))
-                for s in range(self.drusen.shape[2]):
-                    self.controller.update_progress_bar_value(pStep)
-                    misc.imsave(os.path.join(savePath,str(self.scanIDs[s])+\
-                        '-'+saveName+'.png'),self.drusen[:,:,s])
                 self.controller.hide_progress_bar()
                 
     def save_layers(self,saveP):
@@ -326,28 +327,6 @@ class OCT:
                         np.savetxt(os.path.join(savePath2,'prob.txt'),np.asarray(u2))
                         np.savetxt(os.path.join(savePath2,'entropy.txt'),np.asarray(u3))
                         
-                self.controller.hide_progress_bar()
-                
-    def save_layers_as(self,saveName):
-        if(self.layers is not None):
-            if(self.saveFormat=='pkl'):
-                layers=self.change_layers_format_for_saving()
-                layerLoc=dict()       
-                vs=np.unique(layers)
-                for v in vs:
-                    if(v==0):
-                        continue
-                    layerLoc[v]=np.where(layers==v)
-                self.write_pickle_data(saveName,layerLoc)
-            else:
-                savePath,saveName=os.path.split(saveName)
-                savePath=os.path.join(savePath,'layers')
-                self.controller.show_progress_bar("Saving")
-                pStep=100/float(max(1,layers.shape[2]))
-                for s in range(layers.shape[2]):
-                    self.controller.update_progress_bar_value(pStep)
-                    misc.imsave(os.path.join(savePath,str(self.scanIDs[s])+\
-                        '-'+saveName+'.png'),layers[:,:,s])
                 self.controller.hide_progress_bar()
                 
     def save_bbox(self,fileName,bboxesIn):
@@ -726,43 +705,50 @@ class OCT:
         """
         createLayerSeg=False
         # Check if path exists
-        if not os.path.exists(scanPath):
-            createLayerSeg=True
-            self.create_directory(scanPath)
-        # Check if layer files exist
-        d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]
-        if(len(d2)==0):
-            createLayerSeg=True
+        try:
+            if not os.path.exists(scanPath):
+                createLayerSeg=True
+                self.create_directory(scanPath)
+            # Check if layer files exist
+            d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]
+            if(len(d2)==0):
+                createLayerSeg=True
+        except:
+            createLayerSeg = True
             
         probPath=os.path.join(os.path.split(scanPath)[0],'probabilityMaps')   
         # Use Caffe to create initial layer segmentation
         if(createLayerSeg):  
             self.layerSegmenter=deeplearning.DeepLearningLayerSeg(self)
             layers=self.layerSegmenter.get_layer_seg_from_deepnet(self.scans)
+            layers[:, :, :] = self.convert_indices(layers[:, :, :])
+
+            logger.debug(np.unique(layers.shape))
             saveName='layers'
-            self.probMaps=np.transpose(self.probMaps,(1,0,2,3))
-            probmaps=self.probMaps
+            probmaps=np.transpose(self.probMaps,(1,0,2,3)).astype('float16')
+            #self.probMaps = probmaps
+            #probmaps=self.probMaps
             
-            self.create_directory(probPath)
+            #self.create_directory(probPath)
             
             progressVal=self.get_progress_val()
             self.set_progress_val(progressVal+2)
             self.update_progress_bar()
             
-            probmaps=probmaps.astype('float16')
-            for s in range(layers.shape[2]):
+            #probmaps=probmaps.astype('float16')
+            #for s in range(layers.shape[2]):
                 
-                layers[:,:,s]=self.convert_indices(layers[:,:,s])
-                misc.imsave(os.path.join(scanPath,str(self.scanIDs[s])+'-'+\
-                    saveName+'.png'),layers[:,:,s])
-                io.imsave(os.path.join(probPath,str(self.scanIDs[s])+'-0-'+\
-                    saveName+'.tif'),probmaps[:,:,0,s])
-                io.imsave(os.path.join(probPath,str(self.scanIDs[s])+'-1-'+\
-                    saveName+'.tif'),probmaps[:,:,1,s])
-                io.imsave(os.path.join(probPath,str(self.scanIDs[s])+'-2-'+\
-                    saveName+'.tif'),probmaps[:,:,2,s])
-                io.imsave(os.path.join(probPath,str(self.scanIDs[s])+'-3-'+\
-                    saveName+'.tif'),probmaps[:,:,3,s])
+            #    layers[:,:,s]=self.convert_indices(layers[:,:,s])
+            #    misc.imsave(os.path.join(scanPath,str(self.scanIDs[s])+'-'+\
+            #        saveName+'.png'),layers[:,:,s])
+            #    io.imsave(os.path.join(probPath,str(self.scanIDs[s])+'-0-'+\
+            #        saveName+'.tif'),probmaps[:,:,0,s])
+            #    io.imsave(os.path.join(probPath,str(self.scanIDs[s])+'-1-'+\
+            #        saveName+'.tif'),probmaps[:,:,1,s])
+            #    io.imsave(os.path.join(probPath,str(self.scanIDs[s])+'-2-'+\
+            #        saveName+'.tif'),probmaps[:,:,2,s])
+            #    io.imsave(os.path.join(probPath,str(self.scanIDs[s])+'-3-'+\
+            #        saveName+'.tif'),probmaps[:,:,3,s])
         try:
             self.certainSlices=list(np.where(np.loadtxt(os.path.join(probPath,\
                 'prob-entropy.txt'))==0.05)[0])
@@ -772,8 +758,9 @@ class OCT:
         self.progressBarValue=100
         self.controller.set_progress_bar_value(self.progressBarValue)
         QtGui.QApplication.processEvents()        
-        d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]    
-        return d2
+        #d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]
+        #return d2
+        return layers, probmaps
         
     def get_edited_layers(self):
         return self.editedLayers
@@ -891,34 +878,12 @@ class OCT:
                 self.progressBarValue=1
                 self.controller.set_progress_bar_value(self.progressBarValue)
         
-                d2=self.get_layer_from_path(scanPath)
-                 
-                rawstack = list()
-                ind = list()
-                rawStackDict=dict()   
-                rawSize=()
-                for fi in range(len(d2)):
-                     filename = os.path.join(scanPath,d2[fi])
-                     ftype = d2[fi].split('-')[-1]
-                     if(ftype=='layers.png'):
-                         ind.append(int(d2[fi].split('-')[0]))
-                
-                         raw = io.imread(filename)
-                         rawSize = raw.shape
-                         rawStackDict[ind[-1]]=raw
-                if(len(rawSize)>0):
-                    rawstack=np.empty((rawSize[0],rawSize[1],len(ind)))   
-                    keys=rawStackDict.keys()
-                    keys.sort()
-                    i=0
-                    for k in keys:
-                        rawstack[:,:,i]=rawStackDict[k]
-                        i+=1
-                        
-                    self.layers=np.copy(rawstack)
-                    self.layerSegmenter=deeplearning.DeepLearningLayerSeg(self)
-                    self.change_layers_format_for_GUI()
+                self.layers, probmaps = self.get_layer_from_path(scanPath)
+
+                self.layerSegmenter=deeplearning.DeepLearningLayerSeg(self)
+                self.change_layers_format_for_GUI()
                 self.controller.hide_progress_bar()
+
             else:
                 d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]
                 rawstack = list()
@@ -988,80 +953,93 @@ class OCT:
         Read the drusen segmentation maps from the disk if exists, otherwise,
         compute them automatically from the retinal layer segmentations.
         """
-        scanPath=os.path.join(self.scanPath,'drusen')
-        if(self.drusen is None):  
-            if(self.saveFormat=='pkl'):
-                druLoc=self.read_pickle_data(os.path.join(scanPath,'drusen.pkl'))
-                self.drusen=np.zeros(self.scans.shape)
-                self.drusen[druLoc]=255
-            elif(self.saveFormat=='png'):
-                self.controller.show_progress_bar()
-                d2=self.get_drusen_from_path(scanPath)
-                self.controller.set_progress_bar_value(25)
-                rawstack = list()
-                ind = list()
-                rawStackDict=dict()   
-                rawSize=()
-                
-                pStep=50/float(len(d2))
-                for fi in range(len(d2)):
-                     self.controller.update_progress_bar_value(pStep)
-                     filename = os.path.join(scanPath,d2[fi])
-                     ftype = d2[fi].split('-')[-1]
-                     if(ftype=='drusen.png'):
-                         ind.append(int(d2[fi].split('-')[0]))
-                
-                         raw = io.imread(filename)
-                         rawSize = raw.shape
-                         raw[raw>0]=1
-                         raw=self.filter_drusen_by_size(raw)
-                         if(hfilter>0):
-                             raw=self.filter_druse_by_max_height(raw,hfilter)
-                         raw=raw*255
-                         rawStackDict[ind[-1]]=raw
-                if(len(rawSize)>0):
-                    rawstack=np.empty((rawSize[0],rawSize[1],len(ind)))   
-                    keys=rawStackDict.keys()
-                    keys.sort()
-                    i=0
-                    pStep=25/float(max(1,len(keys)))
-                    for k in keys:
-                        self.controller.update_progress_bar_value(pStep)
-                        rawstack[:,:,i]=rawStackDict[k]
-                        i+=1
-                    self.drusen=np.copy(rawstack)
-                self.controller.update_progress_bar_value(100)
-                self.controller.hide_progress_bar()
-            else:
-                d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]
-                rawstack = list()
-                ind = list()
-                rawStackDict=dict()   
-                rawSize=()
-                for fi in range(len(d2)):
-                     filename = os.path.join(scanPath,d2[fi])
-                     ftype = d2[fi].split('-')[-1]
-                     if(ftype=='binmask.tif'):
-                         ind.append(int(d2[fi].split('-')[0]))
-                
-                         raw = io.imread(filename)
-                         rawSize = raw.shape
-                         raw[raw>0]=1
-                         raw=self.filter_drusen_by_size(raw)
-                         raw=raw*255
-                         rawStackDict[ind[-1]]=raw
-                if(len(rawSize)>0):
-                    rawstack=np.empty((rawSize[0],rawSize[1],len(ind)))   
-                    keys=rawStackDict.keys()
-                    keys.sort()
-                    i=0
-                    for k in keys:
-                        rawstack[:,:,i]=rawStackDict[k]
-                        i+=1
-                    self.drusen=np.copy(rawstack)
-        if(self.evaluateDrusen):
+        if self.drusen is not None:
+            # TODO: Prompt the user if he wants to recompute / load drusen or cancel
+            pass
+
+        if self.scanPath != '' and self.scanPath is not None:
+            drusenPath=os.path.join(self.scanPath,'drusen')
+            if os.path.exists(drusenPath):
+                logger.debug('Read drusen from disk...')
+                self.drusen = self.get_drusen_from_path(drusenPath, hfilter)
+                return self.drusen
+
+        logger.debug('Start to compute drusen...')
+        self.drusen = self.compute_drusen()
+
+        return self.drusen
+
+    def get_drusen_from_path(self,scanPath, hfilter):
+
+        if (self.saveFormat == 'pkl'):
+            druLoc = self.read_pickle_data(os.path.join(scanPath, 'drusen.pkl'))
+            self.drusen = np.zeros(self.scans.shape)
+            self.drusen[druLoc] = 255
+
+        elif (self.saveFormat == 'png'):
+            self.controller.show_progress_bar()
+            d_files = [f for f in listdir(scanPath) if isfile(join(scanPath, f)) and 'drusen.png' in f]
+            self.controller.set_progress_bar_value(25)
+
+            drusen = np.zeros(self.scans.shape)
+            pStep = 75 / float(len(d_files))
+            i = 0
+            for fi in d_files:
+                self.controller.update_progress_bar_value(pStep)
+                raw = io.imread(os.path.join(scanPath, fi))
+                raw[raw > 0] = 1
+                raw = self.filter_drusen_by_size(raw)
+                if (hfilter > 0):
+                    raw = self.filter_druse_by_max_height(raw, hfilter)
+                raw = raw * 255
+
+                drusen[:, :, i] = raw
+                i+=1
+
+            self.controller.update_progress_bar_value(100)
+            self.controller.hide_progress_bar()
+
+        # TODO: other file format, is this still used / needed?
+        else:
+            d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]
+            rawstack = list()
+            ind = list()
+            rawStackDict = dict()
+            rawSize = ()
+            for fi in range(len(d2)):
+                filename = os.path.join(scanPath, d2[fi])
+                ftype = d2[fi].split('-')[-1]
+                if (ftype == 'binmask.tif'):
+                    ind.append(int(d2[fi].split('-')[0]))
+
+                    raw = io.imread(filename)
+                    rawSize = raw.shape
+                    raw[raw > 0] = 1
+                    raw = self.filter_drusen_by_size(raw)
+                    raw = raw * 255
+                    rawStackDict[ind[-1]] = raw
+            if (len(rawSize) > 0):
+                rawstack = np.empty((rawSize[0], rawSize[1], len(ind)))
+                keys = rawStackDict.keys()
+                keys.sort()
+                i = 0
+                for k in keys:
+                    rawstack[:, :, i] = rawStackDict[k]
+                    i += 1
+                self.drusen = np.copy(rawstack)
+
+        if (self.evaluateDrusen):
             self.get_GT_drusen()
         return self.drusen
+
+    def compute_drusen(self):
+        if (self.drusenSegmenter is None):
+            logger.debug('Setting drusenSegmenter')
+            self.drusenSegmenter = drusenextractor.DrusenSeg(self.controller)
+
+        drusen = self.drusenSegmenter.get_drusen_seg_polyfit(self.layers)
+
+        return drusen
         
     def get_enface(self):
         """
@@ -1164,7 +1142,7 @@ class OCT:
             return False
             
     def change_layers_format_for_GUI(self):
-        for s in range(self.layers.shape[2]):                    
+        for s in range(self.layers.shape[2]):
             if(170 in self.layers[:,:,s]):
                 # Join point
                 y,x=np.where(self.layers[:,:,s]==255)
@@ -1373,13 +1351,16 @@ class OCT:
         self.drusenOverallDistance=sumD/float(len(self.drusenDistances))
         
     def probmaps_does_exist(self):
-        scanPath=os.path.join(self.scanPath,'layers')
-        probPath=os.path.join(os.path.split(scanPath)[0],'probabilityMaps')
-        self.create_directory(probPath)
-        d2=[f for f in listdir(probPath) if isfile(join(probPath, f))]
-        if(len(d2)<self.scans.shape[2]*4):
+        scanPath = os.path.join(self.scanPath, 'layers')
+        probPath = os.path.join(os.path.split(scanPath)[0], 'probabilityMaps')
+        try:
+            self.create_directory(probPath)
+            d2 = [f for f in listdir(probPath) if isfile(join(probPath, f))]
+            if (len(d2) == self.scans.shape[2] * 4):
+                return False
+            return True
+        except:
             return False
-        return True
    
     def compute_prob_maps(self):
         scanPath=os.path.join(self.scanPath,'layers')
@@ -1582,28 +1563,6 @@ class OCT:
         self.layerSegmenter.set_yLength(info['smoothness'])
         self.editedLayers[sliceNumZ]['BM']=info['prevStatus']
         self.controller.set_uncertainties(info['uncertainties'],sliceNumZ)
-        
-    def get_drusen_from_path(self,scanPath):
-        createDrusenSeg=False
-        # Check if path exists
-        if not os.path.exists(scanPath):
-            createDrusenSeg=True
-            self.create_directory(scanPath)
-        # Check if drusen files exist
-        d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]
-        if(len(d2)==0):
-            createDrusenSeg=True
-        # Use rectification
-        if(createDrusenSeg):  
-            if(self.drusenSegmenter is None):
-                self.drusenSegmenter=drusenextractor.DrusenSeg(self.controller)
-            drusen=self.drusenSegmenter.get_drusen_seg_polyfit(self.layers)
-            saveName='drusen'
-            for s in range(drusen.shape[2]):
-                misc.imsave(os.path.join(scanPath,str(self.scanIDs[s])+'-'+\
-                                                saveName+'.png'),drusen[:,:,s])
-        d2 = [f for f in listdir(scanPath) if isfile(join(scanPath, f))]    
-        return d2 
     
     def walklevel(self,some_dir, level=1):
         some_dir = some_dir.rstrip(os.path.sep)
@@ -1864,7 +1823,36 @@ class OCT:
             return 0.299*img[:,:,0] + 0.587*img[:,:,1] + 0.114*img[:,:,2]
         if(len(img.shape)==2):
             return img
-            
+
+
+    def import_vol_from(self, filepath):
+        """ Import Heidelberg Engineering OCT raw files (.vol ending)
+
+        :param filepath:
+        :return:
+        """
+
+        file_header = iovol.get_vol_header(filepath)
+        slo = iovol.get_slo_image(filepath, file_header)
+        b_hdrs, b_seglines, b_scans = iovol.get_bscan_images(filepath, file_header, improve_constrast='hist_match')
+
+        self.scanIDs = list(range(1,file_header['NumBScans']+1))[:2]
+        self.scans = b_scans[:,:,:2]
+        self.numSlices = self.scans.shape[2]
+        self.width = self.scans.shape[1]
+        self.height = self.scans.shape[0]
+
+        if (self.numSlices > 50):
+            self.zRate = 2
+            self.bResolution = 'high'
+        else:
+            self.zRate = 13
+            self.bResolution = 'low'
+
+        # Invert if too bright
+        if (np.mean(self.scans) > 180):
+            self.scans = 255 - self.scans
+
     def read_scan_from(self,scanPath):
         rawstack = list()
         ind = list()
@@ -1937,6 +1925,7 @@ class OCT:
         # Invert if too bright
         if(meanScanIntensity>180):
             self.scans=255-self.scans
+
     def insert_druse_at_with_normal_thickness(self,slices,posY,thickness):
         if(len(slices)>0):
             prevValues=np.copy(self.drusen[:,posY,slices])
