@@ -22,6 +22,15 @@ from os.path import isfile, join
 from matplotlib import pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
+import logging
+
+# Logging setup for file
+logging.basicConfig(filename=os.path.join(os.path.expanduser('~'), 'octannotation.log'),
+                   ormat='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                   level=logging.DEBUG,
+                   filemode='w')
+logger = logging.getLogger('deeplearning')
+
 #==============================================================================
 # General functions used for image trasfomation and shortest path finding    
 #==============================================================================
@@ -67,6 +76,7 @@ def transform_score_image_per_col(scoreImg, gamma=1.0):
     return -1.0 * gamma * np.log10(np.divide(nom,maxImg))
 
 def shortest_path_in_score_image_unweighted(scoreImg,returnPath=False):
+
     mcp = skg.MCP_Geometric(scoreImg,sampling=(1.,1.),\
         offsets=[(1,0),(0,1),(-1,0),(1,1),(-1,1)])
     starts = np.zeros((scoreImg.shape[0],2))
@@ -412,268 +422,273 @@ class DeepLearningLayerSeg:
                 self.probabilityVals[c]=0.05
                 self.entropyVals[c]=0.05
             return
-        
-        loadPath=os.path.join(self.octScan.get_scan_path(),'uncertainties')
-        
-        d2 = [f for f in listdir(loadPath) if isfile(join(loadPath, f))] if os.path.exists(loadPath) else []
-        if(len(d2)==7):
-            scans=self.octScan.get_scan()
-            self.entropyVals=np.loadtxt(os.path.join(self.octScan.get_current_path(),\
-                "uncertainties",'entropy.txt'))
-            self.probabilityVals=np.loadtxt(os.path.join(self.octScan.get_current_path(),\
-                "uncertainties",'probability.txt'))
-            self.uncertaintyValues=np.loadtxt(os.path.join(self.octScan.get_current_path(),\
-                "uncertainties",'uncertainty.txt'))
-            self.entropyValsPerScan=np.loadtxt(os.path.join(self.octScan.get_current_path(),\
-            "uncertainties",'entropy_per_scan.txt'))
-            self.probabilityValsPerScan=np.loadtxt(os.path.join(self.octScan.get_current_path(),\
-                "uncertainties",'probability_per_scan.txt'))    
-            self.entropyValsPerScan=list(self.entropyValsPerScan.reshape((scans.shape[2],2,self.octScan.get_dim()[1])))
-            self.probabilityValsPerScan=list(self.probabilityValsPerScan.reshape((scans.shape[2],2,self.octScan.get_dim()[1])))
-            self.entropyColors=io.imread(os.path.join(self.octScan.get_current_path(),\
-                "uncertainties",'entropy_colors.tif'))
-            self.probabilityColors=io.imread(os.path.join(self.octScan.get_current_path(),\
-                "uncertainties",'probability_colors.tif')) 
-            
-            self.octScan.set_uncertainty_color_map(self.entropyColors[:,:,:,0],'RPE','Entropy')
-            self.octScan.set_uncertainty_color_map(self.probabilityColors[:,:,:,0],'RPE','Probability')
-            self.octScan.set_uncertainty_color_map(self.entropyColors[:,:,:,1],'BM' ,'Entropy')
-            self.octScan.set_uncertainty_color_map(self.probabilityColors[:,:,:,1],'BM' ,'Probability')
-            return 
-        
-        self.octScan.controller.show_progress_bar()
 
-        probMaps=self.octScan.get_prob_maps()
-        layers=self.octScan.get_layers()
-        if(probMaps.shape[0]!=layers.shape[0]):
-            #Flip
-            probMaps=np.transpose(probMaps,(1,0,2,3))
-        progressVal=0
-        progressStep=98/float(probMaps.shape[3])
-        entropyVals=list()
-        for i in range(probMaps.shape[3]):
-            progressVal+=progressStep
-            self.octScan.controller.set_progress_bar_value(progressVal)
-            
-            p1=np.copy(probMaps[:,:,1,i])
-            p2=np.copy(probMaps[:,:,2,i])
+        if self.octScan.get_scan_path() is not None:
+            loadPath=os.path.join(self.octScan.get_scan_path(),'uncertainties')
 
-            c1=np.copy(p1)
-            c2=np.copy(p2)
-            
-            l1=np.copy(p1)
-            l2=np.copy(p2)
-            
-            c2[np.where(layers[:,:,i]!=255)]=0.
-            c1[np.where(layers[:,:,i]!=127)]=0.
-            
-            p1[1:-1,:]=np.diff(p1,n=2,axis=0)
-            p2[1:-1,:]=np.diff(p2,n=2,axis=0)
-            
-            t1=filters.threshold_otsu(p1)
-            t2=filters.threshold_otsu(p2)
-            
-            p2[np.where(layers[:,:,i]!=255)]=0.
-            p1[np.where(layers[:,:,i]!=127)]=0.
+            logger.debug('ScanPath: {}'.format(self.octScan.get_scan_path()))
 
-            # For each
-            ue1=list()
-            ue2=list()
-            ue1m10=list()
-            ue2m10=list()
-            up1=list()
-            up2=list()
-            for j in range(probMaps.shape[1]):
-                
-                x11=p1[np.where(p1[:,j]>t1),j][0]
-                x21=p2[np.where(p2[:,j]>t2),j][0]
-                
-                x1=p1[:,j]
-                x2=p2[:,j]
-                
-                n1=float(len(x1))
-                n2=float(len(x2))
-                
-                n11=float(len(x11))
-                n21=float(len(x21))
-                if(self.entropyMethod!='probFreq'):
-                    e1=(np.exp(-(self.entropy(l1[:,j]))**3.))
-                    e2=(np.exp(-(self.entropy(l2[:,j]))**3.))
-                    
-                else:
-                    e1=(np.exp(-(self.entropy(l1[:,j]))**1.))*1.
-                    e2=(np.exp(-(self.entropy(l2[:,j]))**1.))*1.
-                    e1m10=e1*10.
-                    e2m10=e2*10.
-                    
-                ue1.append(e1)
-                ue2.append(e2)
-                    
-                ue1m10.append(e1m10)
-                ue2m10.append(e2m10)
-                    
-                if(n1==0):
-                    up1.append(0.)
-                elif(n1==1):
-                    up1.append(1.)
-                else:
-                    max1=max(x1)
-                    unc1=np.sum(np.power(max1-x1,1))
-                    unc1=((unc1/(n1-1))+(np.exp(-np.sqrt(n11-1))))/2.
-                    unc1=np.sum(np.abs(x1**2))+np.sum(np.abs(c1[:,j]))
-                    xx=np.where(c1[:,j]>0)[0]
+            d2 = [f for f in listdir(loadPath) if isfile(join(loadPath, f))] if os.path.exists(loadPath) else []
+            if(len(d2)==7):
+                scans=self.octScan.get_scan()
+                self.entropyVals=np.loadtxt(os.path.join(self.octScan.get_current_path(),\
+                    "uncertainties",'entropy.txt'))
+                self.probabilityVals=np.loadtxt(os.path.join(self.octScan.get_current_path(),\
+                    "uncertainties",'probability.txt'))
+                self.uncertaintyValues=np.loadtxt(os.path.join(self.octScan.get_current_path(),\
+                    "uncertainties",'uncertainty.txt'))
+                self.entropyValsPerScan=np.loadtxt(os.path.join(self.octScan.get_current_path(),\
+                "uncertainties",'entropy_per_scan.txt'))
+                self.probabilityValsPerScan=np.loadtxt(os.path.join(self.octScan.get_current_path(),\
+                    "uncertainties",'probability_per_scan.txt'))
+                self.entropyValsPerScan=list(self.entropyValsPerScan.reshape((scans.shape[2],2,self.octScan.get_dim()[1])))
+                self.probabilityValsPerScan=list(self.probabilityValsPerScan.reshape((scans.shape[2],2,self.octScan.get_dim()[1])))
+                self.entropyColors=io.imread(os.path.join(self.octScan.get_current_path(),\
+                    "uncertainties",'entropy_colors.tif'))
+                self.probabilityColors=io.imread(os.path.join(self.octScan.get_current_path(),\
+                    "uncertainties",'probability_colors.tif'))
 
-                    if(len(xx)==1):
-                        unc1=c1[xx[0],j]
-                        up1.append(unc1)
-                    elif(len(xx)>1):
-                        unc1=c1[xx[0],j]
-                        up1.append(unc1)
+                self.octScan.set_uncertainty_color_map(self.entropyColors[:,:,:,0],'RPE','Entropy')
+                self.octScan.set_uncertainty_color_map(self.probabilityColors[:,:,:,0],'RPE','Probability')
+                self.octScan.set_uncertainty_color_map(self.entropyColors[:,:,:,1],'BM' ,'Entropy')
+                self.octScan.set_uncertainty_color_map(self.probabilityColors[:,:,:,1],'BM' ,'Probability')
+
+        else:
+            self.octScan.controller.show_progress_bar()
+
+            probMaps=self.octScan.get_probmaps()
+            layers=self.octScan.get_layers()
+            if probMaps.shape[0] != layers.shape[0]:
+                # Flip
+                probMaps=np.transpose(probMaps,(1,0,2,3))
+            progressVal=0
+            progressStep=98/float(probMaps.shape[3])
+            entropyVals=list()
+            for i in range(probMaps.shape[3]):
+                progressVal += progressStep
+                self.octScan.controller.set_progress_bar_value(progressVal)
+
+                p1=np.copy(probMaps[:,:,1,i])
+                p2=np.copy(probMaps[:,:,2,i])
+
+                c1=np.copy(p1)
+                c2=np.copy(p2)
+
+                l1=np.copy(p1)
+                l2=np.copy(p2)
+
+                c2[np.where(layers[:,:,i]!=255)]=0.
+                c1[np.where(layers[:,:,i]!=127)]=0.
+
+                p1[1:-1,:]=np.diff(p1,n=2,axis=0)
+                p2[1:-1,:]=np.diff(p2,n=2,axis=0)
+
+                t1=filters.threshold_otsu(p1)
+                t2=filters.threshold_otsu(p2)
+
+                p2[np.where(layers[:,:,i]!=255)]=0.
+                p1[np.where(layers[:,:,i]!=127)]=0.
+
+                # For each
+                ue1=list()
+                ue2=list()
+                ue1m10=list()
+                ue2m10=list()
+                up1=list()
+                up2=list()
+                for j in range(probMaps.shape[1]):
+
+                    x11=p1[np.where(p1[:,j]>t1),j][0]
+                    x21=p2[np.where(p2[:,j]>t2),j][0]
+
+                    x1=p1[:,j]
+                    x2=p2[:,j]
+
+                    n1=float(len(x1))
+                    n2=float(len(x2))
+
+                    n11=float(len(x11))
+                    n21=float(len(x21))
+                    if(self.entropyMethod!='probFreq'):
+                        e1=(np.exp(-(self.entropy(l1[:,j]))**3.))
+                        e2=(np.exp(-(self.entropy(l2[:,j]))**3.))
+
                     else:
-                        up1.append(1.0)
-                if(n2==0):
-                    up2.append(0.)
-                elif(n2==1):
-                    up2.append(1.)
-                else:
-                    max2=max(x2)
-                    unc2=np.sum(np.power(max2-x2,1))
-                    unc2=((unc2/(n2-1))+(np.exp(-np.sqrt(n21-1))))/2.
-                    unc2=np.sum(np.abs(x2**2))+np.sum(np.abs(c2[:,j]))
-                    xx=np.where(c2[:,j]>0)[0]
+                        e1=(np.exp(-(self.entropy(l1[:,j]))**1.))*1.
+                        e2=(np.exp(-(self.entropy(l2[:,j]))**1.))*1.
+                        e1m10=e1*10.
+                        e2m10=e2*10.
 
-                    if(len(xx)==1):
-                        unc2=c2[xx[0],j]
-                        up2.append(unc2)
-                    elif(len(xx)>1):
-                        unc2=c2[xx[0],j]
+                    ue1.append(e1)
+                    ue2.append(e2)
 
-                        up2.append(unc2)
+                    ue1m10.append(e1m10)
+                    ue2m10.append(e2m10)
+
+                    if(n1==0):
+                        up1.append(0.)
+                    elif(n1==1):
+                        up1.append(1.)
                     else:
-                        up2.append(1.0)
+                        max1=max(x1)
+                        unc1=np.sum(np.power(max1-x1,1))
+                        unc1=((unc1/(n1-1))+(np.exp(-np.sqrt(n11-1))))/2.
+                        unc1=np.sum(np.abs(x1**2))+np.sum(np.abs(c1[:,j]))
+                        xx=np.where(c1[:,j]>0)[0]
+
+                        if(len(xx)==1):
+                            unc1=c1[xx[0],j]
+                            up1.append(unc1)
+                        elif(len(xx)>1):
+                            unc1=c1[xx[0],j]
+                            up1.append(unc1)
+                        else:
+                            up1.append(1.0)
+                    if(n2==0):
+                        up2.append(0.)
+                    elif(n2==1):
+                        up2.append(1.)
+                    else:
+                        max2=max(x2)
+                        unc2=np.sum(np.power(max2-x2,1))
+                        unc2=((unc2/(n2-1))+(np.exp(-np.sqrt(n21-1))))/2.
+                        unc2=np.sum(np.abs(x2**2))+np.sum(np.abs(c2[:,j]))
+                        xx=np.where(c2[:,j]>0)[0]
+
+                        if(len(xx)==1):
+                            unc2=c2[xx[0],j]
+                            up2.append(unc2)
+                        elif(len(xx)>1):
+                            unc2=c2[xx[0],j]
+
+                            up2.append(unc2)
+                        else:
+                            up2.append(1.0)
+
+                sig=2
+                ue1=sc.ndimage.filters.gaussian_filter(ue1,sig)
+                ue2=sc.ndimage.filters.gaussian_filter(ue2,sig)
+                ue1m10=sc.ndimage.filters.gaussian_filter(ue1m10,sig)
+                ue2m10=sc.ndimage.filters.gaussian_filter(ue2m10,sig)
+                bnd=50
+                ue1[:bnd]=ue1[bnd+1]
+                ue1[-bnd:]=ue1[-bnd-1]
+                ue2[:bnd]=ue2[bnd+1]
+                ue2[-bnd:]=ue2[-bnd-1]
+                ue1m10[:bnd]=ue1m10[bnd+1]
+                ue1m10[-bnd:]=ue1m10[-bnd-1]
+                ue2m10[:bnd]=ue2m10[bnd+1]
+                ue2m10[-bnd:]=ue2m10[-bnd-1]
+                up1=sc.ndimage.filters.gaussian_filter(np.array(up1).astype('float32'),sig)
+                up2=sc.ndimage.filters.gaussian_filter(np.array(up2).astype('float32'),sig)
+
+                up1[:bnd]=up1[bnd+1]
+                up1[-bnd:]=up1[-bnd-1]
+                up2[:bnd]=up2[bnd+1]
+                up2[-bnd:]=up2[-bnd-1]
+
+                mmethod='min'
+                if(mmethod=='quartile'):
+                    u1eq=np.percentile(ue1,25)
+                    ue1=ue1[np.where(ue1<u1eq)]
+                    u1eqm10=np.percentile(ue1m10,25)
+                    ue1m10=ue1m10[np.where(ue1m10<u1eqm10)]
+
+                    u2eq=np.percentile(ue2,25)
+                    ue2=ue2[np.where(ue2<u2eq)]
+                    u2eqm10=np.percentile(ue2m10,25)
+                    ue2m10=ue2m10[np.where(ue2m10<u2eqm10)]
+
+                    u1pq=np.percentile(up1,25)
+                    up1=up1[np.where(up1<u1pq)]
+
+                    u2pq=np.percentile(up2,25)
+                    up2=up2[np.where(up2<u2pq)]
+
+                    self.uncertaintyValues.append(min(min((ue1+up1)/2.),\
+                        min((ue2+up2)/2.)))
+                    self.entropyVals.append(1.-min(np.average(u1eqm10),\
+                        np.average(u2eqm10)))
+                    entropyVals.append(1.-min(np.average(u1eq),np.average(u2eq)))
+                    self.probabilityVals.append(1.-min(np.average(u1pq),\
+                        np.average(u2pq)))
+
+                elif(mmethod=='average'):
+                    self.uncertaintyValues.append(min(min((ue1+up1)/2.),\
+                        min((ue2+up2)/2.)))
+                    self.entropyVals.append(1.-min(np.average(ue1m10),\
+                        np.average(ue2m10)))
+                    entropyVals.append(1.-min(np.average(ue1),np.average(ue2)))
+                    self.probabilityVals.append(1.-min(np.average(up1),\
+                        np.average(up2)))
+                else:
+                    self.uncertaintyValues.append(min(min((ue1+up1)/2.),\
+                        min((ue2+up2)/2.)))
+                    self.entropyVals.append(1.-min(min(ue1m10),min(ue2m10)))
+                    entropyVals.append(1.-min(min(ue1),min(ue2)))
+                    self.probabilityVals.append(1.-min(min(up1),min(up2)))
+                    self.entropyValsPerScan.append([ue1m10,ue2m10])
+                    self.probabilityValsPerScan.append([up1,up2])
+
+            for c in certainSlices:
+                self.uncertaintyValues[c]=0.05
+                self.probabilityVals[c]=0.05
+                self.entropyVals[c]=0.05
+                entropyVals[c]=0.05
+            # ConvertToColors:
+            if(True):
+                self.probabilityColors=np.empty((len(self.probabilityValsPerScan),len(self.probabilityValsPerScan[0][0]),3,2))
+                self.entropyColors=np.empty((len(self.entropyValsPerScan),len(self.entropyValsPerScan[0][0]),3,2))
+
+                prbRPE=np.empty((layers.shape[2],layers.shape[1]))
+                prbBM=np.empty((layers.shape[2],layers.shape[1]))
+                entRPE=np.empty((layers.shape[2],layers.shape[1]))
+                entBM=np.empty((layers.shape[2],layers.shape[1]))
+                for i in range(len(self.probabilityVals)):
+                    colorsRPEEnt=map_numbers_to_colors(self.entropyValsPerScan[i][1],self.cm1)
+                    colorsBMEnt=map_numbers_to_colors(self.entropyValsPerScan[i][0],self.cm1)
+                    colorsRPEPr=map_numbers_to_colors(self.probabilityValsPerScan[i][1],self.cm2)
+                    colorsBMPr=map_numbers_to_colors(self.probabilityValsPerScan[i][0],self.cm2)
+                    self.entropyColors[i,:,:,0]=colorsRPEEnt
+                    self.entropyColors[i,:,:,1]=colorsBMEnt
+                    self.probabilityColors[i,:,:,0]=colorsRPEPr
+                    self.probabilityColors[i,:,:,1]=colorsBMPr
+                    entRPE[i,:]=self.entropyValsPerScan[i][1]
+                    entBM[i,:]=self.entropyValsPerScan[i][0]
+                    prbRPE[i,:]=self.probabilityValsPerScan[i][1]
+                    prbBM[i,:]=self.probabilityValsPerScan[i][0]
+                self.octScan.set_uncertainty_color_map(self.entropyColors[:,:,:,0],'RPE','Entropy')
+                self.octScan.set_uncertainty_color_map(self.probabilityColors[:,:,:,0],'RPE','Probability')
+                self.octScan.set_uncertainty_color_map(self.entropyColors[:,:,:,1],'BM' ,'Entropy')
+                self.octScan.set_uncertainty_color_map(self.probabilityColors[:,:,:,1],'BM' ,'Probability')
+            """
+            savePath=os.path.join(self.octScan.get_scan_path(),'uncertainties')
+            if not os.path.exists(savePath):
+                self.octScan.create_directory(savePath)
             
-            sig=2
-            ue1=sc.ndimage.filters.gaussian_filter(ue1,sig)
-            ue2=sc.ndimage.filters.gaussian_filter(ue2,sig)
-            ue1m10=sc.ndimage.filters.gaussian_filter(ue1m10,sig)
-            ue2m10=sc.ndimage.filters.gaussian_filter(ue2m10,sig)
-            bnd=50
-            ue1[:bnd]=ue1[bnd+1]
-            ue1[-bnd:]=ue1[-bnd-1]
-            ue2[:bnd]=ue2[bnd+1]
-            ue2[-bnd:]=ue2[-bnd-1]
-            ue1m10[:bnd]=ue1m10[bnd+1]
-            ue1m10[-bnd:]=ue1m10[-bnd-1]
-            ue2m10[:bnd]=ue2m10[bnd+1]
-            ue2m10[-bnd:]=ue2m10[-bnd-1]
-            up1=sc.ndimage.filters.gaussian_filter(up1,sig)
-            up2=sc.ndimage.filters.gaussian_filter(up2,sig)
+            np.savetxt(os.path.join(self.octScan.get_current_path(),\
+                "uncertainties",'entropy_per_scan.txt'),np.asarray(self.entropyValsPerScan).flatten())
+            np.savetxt(os.path.join(self.octScan.get_current_path(),\
+                "uncertainties",'probability_per_scan.txt'),np.asarray(self.probabilityValsPerScan).flatten())  
             
-            up1[:bnd]=up1[bnd+1]
-            up1[-bnd:]=up1[-bnd-1]
-            up2[:bnd]=up2[bnd+1]
-            up2[-bnd:]=up2[-bnd-1]
-            
-            mmethod='min'
-            if(mmethod=='quartile'):
-                u1eq=np.percentile(ue1,25)
-                ue1=ue1[np.where(ue1<u1eq)]
-                u1eqm10=np.percentile(ue1m10,25)
-                ue1m10=ue1m10[np.where(ue1m10<u1eqm10)]
+            np.savetxt(os.path.join(self.octScan.get_current_path(),\
+                "uncertainties",'entropy.txt'),self.entropyVals)
+            np.savetxt(os.path.join(self.octScan.get_current_path(),\
+                "uncertainties",'probability.txt'),self.probabilityVals)
+            np.savetxt(os.path.join(self.octScan.get_current_path(),\
+                "uncertainties",'uncertainty.txt'),self.uncertaintyValues)
                 
-                u2eq=np.percentile(ue2,25)
-                ue2=ue2[np.where(ue2<u2eq)]
-                u2eqm10=np.percentile(ue2m10,25)
-                ue2m10=ue2m10[np.where(ue2m10<u2eqm10)]
-                
-                u1pq=np.percentile(up1,25)
-                up1=up1[np.where(up1<u1pq)]
-                
-                u2pq=np.percentile(up2,25)
-                up2=up2[np.where(up2<u2pq)]
-                
-                self.uncertaintyValues.append(min(min((ue1+up1)/2.),\
-                    min((ue2+up2)/2.)))
-                self.entropyVals.append(1.-min(np.average(u1eqm10),\
-                    np.average(u2eqm10)))
-                entropyVals.append(1.-min(np.average(u1eq),np.average(u2eq)))
-                self.probabilityVals.append(1.-min(np.average(u1pq),\
-                    np.average(u2pq)))
-                    
-            elif(mmethod=='average'):
-                self.uncertaintyValues.append(min(min((ue1+up1)/2.),\
-                    min((ue2+up2)/2.)))
-                self.entropyVals.append(1.-min(np.average(ue1m10),\
-                    np.average(ue2m10)))
-                entropyVals.append(1.-min(np.average(ue1),np.average(ue2)))
-                self.probabilityVals.append(1.-min(np.average(up1),\
-                    np.average(up2)))
-            else:
-                self.uncertaintyValues.append(min(min((ue1+up1)/2.),\
-                    min((ue2+up2)/2.)))
-                self.entropyVals.append(1.-min(min(ue1m10),min(ue2m10)))
-                entropyVals.append(1.-min(min(ue1),min(ue2)))
-                self.probabilityVals.append(1.-min(min(up1),min(up2)))
-                self.entropyValsPerScan.append([ue1m10,ue2m10])
-                self.probabilityValsPerScan.append([up1,up2])
-                
-        for c in certainSlices:
-            self.uncertaintyValues[c]=0.05
-            self.probabilityVals[c]=0.05
-            self.entropyVals[c]=0.05
-            entropyVals[c]=0.05
-        # ConvertToColors:
-        if(True):
-            self.probabilityColors=np.empty((len(self.probabilityValsPerScan),len(self.probabilityValsPerScan[0][0]),3,2))    
-            self.entropyColors=np.empty((len(self.entropyValsPerScan),len(self.entropyValsPerScan[0][0]),3,2))    
-            
-            prbRPE=np.empty((layers.shape[2],layers.shape[1]))
-            prbBM=np.empty((layers.shape[2],layers.shape[1]))
-            entRPE=np.empty((layers.shape[2],layers.shape[1]))
-            entBM=np.empty((layers.shape[2],layers.shape[1]))
-            for i in range(len(self.probabilityVals)):
-                colorsRPEEnt=map_numbers_to_colors(self.entropyValsPerScan[i][1],self.cm1)
-                colorsBMEnt=map_numbers_to_colors(self.entropyValsPerScan[i][0],self.cm1)
-                colorsRPEPr=map_numbers_to_colors(self.probabilityValsPerScan[i][1],self.cm2)
-                colorsBMPr=map_numbers_to_colors(self.probabilityValsPerScan[i][0],self.cm2)
-                self.entropyColors[i,:,:,0]=colorsRPEEnt
-                self.entropyColors[i,:,:,1]=colorsBMEnt
-                self.probabilityColors[i,:,:,0]=colorsRPEPr
-                self.probabilityColors[i,:,:,1]=colorsBMPr
-                entRPE[i,:]=self.entropyValsPerScan[i][1]
-                entBM[i,:]=self.entropyValsPerScan[i][0]
-                prbRPE[i,:]=self.probabilityValsPerScan[i][1]
-                prbBM[i,:]=self.probabilityValsPerScan[i][0]
-            self.octScan.set_uncertainty_color_map(self.entropyColors[:,:,:,0],'RPE','Entropy')
-            self.octScan.set_uncertainty_color_map(self.probabilityColors[:,:,:,0],'RPE','Probability')
-            self.octScan.set_uncertainty_color_map(self.entropyColors[:,:,:,1],'BM' ,'Entropy')
-            self.octScan.set_uncertainty_color_map(self.probabilityColors[:,:,:,1],'BM' ,'Probability')
-        savePath=os.path.join(self.octScan.get_scan_path(),'uncertainties')
-        if not os.path.exists(savePath):
-            self.octScan.create_directory(savePath)
-        
-        np.savetxt(os.path.join(self.octScan.get_current_path(),\
-            "uncertainties",'entropy_per_scan.txt'),np.asarray(self.entropyValsPerScan).flatten())
-        np.savetxt(os.path.join(self.octScan.get_current_path(),\
-            "uncertainties",'probability_per_scan.txt'),np.asarray(self.probabilityValsPerScan).flatten())  
-        
-        np.savetxt(os.path.join(self.octScan.get_current_path(),\
-            "uncertainties",'entropy.txt'),self.entropyVals)
-        np.savetxt(os.path.join(self.octScan.get_current_path(),\
-            "uncertainties",'probability.txt'),self.probabilityVals)
-        np.savetxt(os.path.join(self.octScan.get_current_path(),\
-            "uncertainties",'uncertainty.txt'),self.uncertaintyValues)
-            
-        io.imsave(os.path.join(self.octScan.get_current_path(),\
-            "uncertainties",'entropy_colors.tif'),\
-            self.entropyColors)
-        io.imsave(os.path.join(self.octScan.get_current_path(),\
-            "uncertainties",'probability_colors.tif'),\
-            self.probabilityColors)    
-        # Check if layer files exist
-        self.octScan.set_progress_val(100)
-        self.octScan.update_progress_bar()
-        self.octScan.controller.hide_progress_bar()
+            io.imsave(os.path.join(self.octScan.get_current_path(),\
+                "uncertainties",'entropy_colors.tif'),\
+                self.entropyColors)
+            io.imsave(os.path.join(self.octScan.get_current_path(),\
+                "uncertainties",'probability_colors.tif'),\
+                self.probabilityColors)   
+            """
+            # Check if layer files exist
+            self.octScan.set_progress_val(100)
+            self.octScan.update_progress_bar()
+            self.octScan.controller.hide_progress_bar()
         
     # Input a pandas series 
     def entropy(self,data):
@@ -853,7 +868,7 @@ class DeepLearningLayerSeg:
         return (1./(sigma*np.sqrt(2.*np.pi)))*np.exp(-(x**2/(2.*sigma**2)))
         
     def update_shortest_path_in_slice(self,layerName,sliceNum,yLength=1.):
-            probMaps=self.octScan.get_prob_maps()
+            probMaps=self.octScan.get_probmaps()
             # SliceNum here is sliceNumZ
             h,w=probMaps[:,:,1,sliceNum].shape
             
@@ -904,7 +919,7 @@ class DeepLearningLayerSeg:
       
     def update_probability_image(self,i,j,sliceNum,layerName,smoothness):
         eps=0.
-        probMaps=self.octScan.get_prob_maps()
+        probMaps=self.octScan.get_probmaps()
         layers=self.octScan.get_layers()
         if(layerName=='RPE'):
             probMaps[:,j,3,sliceNum]=eps
@@ -955,7 +970,7 @@ class DeepLearningLayerSeg:
 
     def update_probability_image_multi_points(self,points,sliceNum,smoothness):
         eps=0.
-        probMaps=np.copy(self.octScan.get_prob_maps()[:,:,:,sliceNum])
+        probMaps=np.copy(self.octScan.get_probmaps()[:, :, :, sliceNum])
         for p in points:
             i=p[0]
             j=p[1]
@@ -986,13 +1001,13 @@ class DeepLearningLayerSeg:
         return labels 
         
     def update_shortest_path(self,permuteAxis=False):
-        probMaps=self.octScan.get_prob_maps()
+        probMaps=self.octScan.get_probmaps()
         if(permuteAxis):
             return self.find_shortest_path(probMaps,fromDisk=True)
         return self.find_shortest_path(probMaps)
         
     def compute_shortest_path_in_A_scan_direction(self,i,j,sliceNumZ,smoothness,neighborhood):
-        probMaps=self.octScan.get_prob_maps()
+        probMaps=self.octScan.get_probmaps()
         useMin=False
         if(useMin):
             return self.find_shortest_path_in_A_scan_direction_using_local_min(probMaps,i,j,sliceNumZ,smoothness,neighborhood)
