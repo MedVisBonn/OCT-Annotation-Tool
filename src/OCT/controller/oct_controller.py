@@ -215,7 +215,7 @@ class OCTController:
         if import_path != '':
             self.delete_previous()
             self.oct.set_evaluation_schemes(self.evaluateLayers, self.evaluateDrusen)
-            self.oct.set_scan_path('')
+            self.oct.set_scan_path(None)
             self.oct.import_vol_from(import_path)
 
             npimg = self.oct.get_scan()[:, :, self.currentScanNumber - 1]
@@ -246,14 +246,10 @@ class OCTController:
         Apply retinal layer segmentation and visualize it.
         """
         self.oct.get_layers()
-        probmapsExist = self.oct.probmaps_does_exist()
+        self.oct.get_probmaps()
+        self.oct.compute_uncertainties()
 
-        if probmapsExist:
-            self.enable_probability_related_tools()
-            self.compute_probability_maps()
-
-        else:
-            self.disable_probability_related_tools()
+        self.enable_probability_related_tools()
 
         self.currentLayerNumber = 1
         npimg = self.oct.layers[:, :, self.currentLayerNumber - 1]
@@ -266,12 +262,12 @@ class OCTController:
         overlay = np.copy(npimg)
         self.mainWindowUi.add_overlay([overlay], 'layerViewer', self.scanCoeff)
         self.activaViewerSet.add('layerViewer')
-        if probmapsExist:
-            self.visualize_uncertainties()
-            self.showSuggestedSegmentation = dict()
-            self.showSuggestedSegmentation['RPE'] = np.ones((self.oct.layers.shape[2]), dtype=bool)
-            self.showSuggestedSegmentation['BM'] = np.ones((self.oct.layers.shape[2]), dtype=bool)
-            self.mainWindowUi.set_edited_layers(self.oct.get_edited_layers())
+
+        self.visualize_uncertainties()
+        self.showSuggestedSegmentation = dict()
+        self.showSuggestedSegmentation['RPE'] = np.ones((self.oct.layers.shape[2]), dtype=bool)
+        self.showSuggestedSegmentation['BM'] = np.ones((self.oct.layers.shape[2]), dtype=bool)
+        self.mainWindowUi.set_edited_layers(self.oct.get_edited_layers())
 
     def get_hrf_bounding_boxes(self):
         return self.mainWindowUi.get_hrf_bounding_boxes()
@@ -324,7 +320,8 @@ class OCTController:
     def get_drusen(self):
         self.currentDrusenNumber = 1
         drusen = self.oct.get_drusen()
-        logger.debug('Drusen are computed')
+        logger.debug('Drusen max: {}'.format(drusen.max()))
+        logger.debug('Drusen available. Shape: {}'.format(drusen.shape))
         npimg = drusen[:, :, self.currentDrusenNumber - 1]
         self.mainWindowUi.show_viewer(npimg, 'drusenViewer', self.oct.numSlices)
         npimg = self.oct.get_scan()[:, :, self.currentDrusenNumber - 1]
@@ -332,6 +329,7 @@ class OCTController:
         npimg = self.oct.get_layers()[:, :, self.currentDrusenNumber - 1]
         overlay2 = np.copy(npimg)
         self.mainWindowUi.add_overlay([overlay1, overlay2], 'drusenViewer', self.scanCoeff)
+
         self.activaViewerSet.add('drusenViewer')
 
     def get_enface(self):
@@ -1266,7 +1264,7 @@ class OCTController:
         """
         Compute the probability maps from the deep net. Compute uncertainties.
         """
-        self.oct.compute_prob_maps()
+        self.oct.get_probmaps()
         self.oct.compute_uncertainties()
 
     def apply_threshold_immediately(self):
@@ -1579,7 +1577,7 @@ class OCTController:
             elif self.editRPE:
                 layerName = 'RPE'
             if callerName == 'enfaceDrusenViewer' or callerName == 'drusenViewer':
-                print prevValues
+                #print prevValues
                 self.mainWindowUi.draw_curve_command(x, y, s, color, callerName, self.currentDrusenNumber, prevValues, redoValues, layerName)
             elif callerName == 'hrfViewer':
                 self.mainWindowUi.draw_curve_command(x, y, s, color, callerName, self.currentHRFNumber, prevValues, redoValues, layerName)
@@ -2061,6 +2059,7 @@ class OCTController:
             currLayer = 'BM'
         currSlice = self.currentLayerNumber
         layer, knots = self.oct.curve_to_spline(currLayer, currSlice)
+        logger.debug('Knots are computed')
         self.mainWindowUi.draw_spline_layer_command(np.copy(layer), knots, currLayer, currSlice)
         self.mainWindowUi.curve_to_spline()
 
