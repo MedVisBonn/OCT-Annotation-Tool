@@ -29,6 +29,14 @@ except AttributeError:
     def _translate(context, text, disambig):
         return QtGui.QApplication.translate(context, text, disambig)
 
+import logging
+# Logging setup for file
+logging.basicConfig(filename=os.path.join(os.path.expanduser('~'), 'octannotation.log'),
+                    ormat='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                    level=logging.DEBUG,
+                    filemode='w')
+logger = logging.getLogger('OCT')
+
 #==============================================================================
 # Toolbox viewer class
 #==============================================================================
@@ -1177,8 +1185,10 @@ class Ui_toolBox(object):
             self.toolButtonSplineClicked else False
         self.toolButtonSpline.setChecked(self.toolButtonSplineClicked)
         if(self.toolButtonSplineClicked):
+            logger.debug('spline_action - curve to spline')
             self.curve_to_spline()
         else:
+            logger.debug('spline_action - curve to spline')
             self.spline_to_curve()
         
         self.lastClickedButton=self.toolButtonSpline
