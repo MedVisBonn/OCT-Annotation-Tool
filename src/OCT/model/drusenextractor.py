@@ -158,12 +158,12 @@ class DrusenSeg:
                 if (polyFitType == 'None'):
                     z = np.polyfit(sx, sy, deg=degree)
                 else:
-                    z = self.compute_reguilarized_fit(sx, sy, deg=degree)
+                    z = self.compute_regularized_fit(sx, sy, deg=degree)
             else:
                 if (polyFitType == 'None'):
                     z = np.polyfit(tmpx, tmpy, deg=degree)
                 else:
-                    z = self.compute_reguilarized_fit(tmpx, tmpy, deg=degree)
+                    z = self.compute_regularized_fit(tmpx, tmpy, deg=degree)
             p = np.poly1d(z)
 
             new_y = p(finalx).astype('int')
@@ -181,7 +181,7 @@ class DrusenSeg:
 
         return finaly, finalx
 
-    def compute_reguilarized_fit(self, x, y, deg):
+    def compute_regularized_fit(self, x, y, deg):
         logger.debug('Compute regularized fit')
         resMat = np.zeros((deg + 1, deg + 1))
         for d in range(deg + 1):
@@ -214,7 +214,7 @@ class DrusenSeg:
             if (self.polyFitType == 'None'):
                 z = np.polyfit(x_b, y_b, deg=degree)
             else:
-                z = self.compute_reguilarized_fit(x_b, y_b, deg=degree)
+                z = self.compute_regularized_fit(x_b, y_b, deg=degree)
 
             p = np.poly1d(z)
             y_b = p(x_r).astype('int')
@@ -272,12 +272,12 @@ class DrusenSeg:
                 if (self.polyFitType == 'None'):
                     z = np.polyfit(sx, sy, deg=degree)
                 else:
-                    z = self.compute_reguilarized_fit(sx, sy, deg=degree)
+                    z = self.compute_regularized_fit(sx, sy, deg=degree)
             else:
                 if (self.polyFitType == 'None'):
                     z = np.polyfit(tmpx, tmpy, deg=degree)
                 else:
-                    z = self.compute_reguilarized_fit(tmpx, tmpy, deg=degree)
+                    z = self.compute_regularized_fit(tmpx, tmpy, deg=degree)
             p = np.poly1d(z)
 
             new_y = p(finalx).astype('int')
