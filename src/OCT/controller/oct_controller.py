@@ -189,7 +189,7 @@ class OCTController:
                 scanPath = "/home/gorgi/Desktop/OCT-Editting-November-ForMaximilian/OCT-Editing-Tool/src/OCT/dummyData/220814_145"
             self.lastScanPath = scanPath
         else:
-            scanPath = self.mainWindowUi.get_scan_path(self.lastScanPath)
+            scanPath = str(self.mainWindowUi.get_scan_path(self.lastScanPath))
             self.lastScanPath = scanPath
         if scanPath != '':
             self.delete_previous()
@@ -211,7 +211,7 @@ class OCTController:
 
         :return:
         """
-        import_path = self.mainWindowUi.get_filepath(self.lastImportPath)
+        import_path = str(self.mainWindowUi.get_filepath(self.lastImportPath))
         self.lastImportPath = import_path
 
         if import_path != '':
