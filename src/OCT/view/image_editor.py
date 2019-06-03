@@ -15,6 +15,16 @@ from bresenham import bresenham
 from matplotlib import pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
+import os
+import logging
+
+# Logging setup for file
+logging.basicConfig(filename=os.path.join(os.path.expanduser('~'), 'octannotation.log'),
+                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                    level=logging.DEBUG,
+                    filemode='w')
+logger = logging.getLogger('image_editor')
+
 
 #==============================================================================
 # Viewer's graphics part redefined to handle different mouse cursor
@@ -648,6 +658,7 @@ class ImageDrawPanel(QtGui.QGraphicsPixmapItem):
             knots=self.controller.get_spline_knots(self.sliceNum-1)          
         
             if(knots is None):
+                logger.debug('paint: No knots found')
                 return
             lineThikness=1.
             knotsx,knotsy=knots

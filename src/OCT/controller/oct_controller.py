@@ -2061,7 +2061,7 @@ class OCTController:
             currLayer = 'BM'
         currSlice = self.currentLayerNumber
         layer, knots = self.oct.curve_to_spline(currLayer, currSlice)
-        logger.debug('Knots are computed')
+        logger.debug('Knots are computed: {}'.format(knots))
         self.mainWindowUi.draw_spline_layer_command(np.copy(layer), knots, currLayer, currSlice)
         self.mainWindowUi.curve_to_spline()
 
@@ -2095,12 +2095,16 @@ class OCTController:
         self.oct.spline_to_curve(currLayer, currSlice)
 
     def get_spline_knots(self, sliceZ):
+
+        logger.debug('BM: {}, RPE: {}'.format(self.editBM, self.editRPE))
         if self.editRPE:
             currLayer = 'RPE'
         elif self.editBM:
             currLayer = 'BM'
         else:
+            logger.debug('no knots returned')
             return None
+
         return self.oct.get_spline_knots(currLayer, sliceZ)
 
     def add_spline_knot(self, y, x, sliceZ):

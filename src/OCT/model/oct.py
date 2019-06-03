@@ -29,7 +29,7 @@ import iovol
 
 # Logging setup for file
 logging.basicConfig(filename=os.path.join(os.path.expanduser('~'), 'octannotation.log'),
-                    ormat='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
                     level=logging.DEBUG,
                     filemode='w')
 logger = logging.getLogger('OCT')
@@ -970,8 +970,6 @@ class OCT:
         return self.enfaceDrusen
 
     def get_RPE_layer(self, seg_img):
-        y = []
-        x = []
         if len(np.unique(seg_img)) == 4:
             tmp = np.zeros(seg_img.shape)
             tmp[np.where(seg_img == 170)] = 255
@@ -986,8 +984,6 @@ class OCT:
         return y, x
 
     def get_BM_layer(self, seg_img):
-        y = []
-        x = []
         tmp = np.zeros(seg_img.shape)
         tmp[np.where(seg_img == 170)] = 255
         tmp[np.where(seg_img == 85)] = 255
@@ -2414,8 +2410,10 @@ class OCT:
         """
         logger.debug('Curve to splines')
         sliceZ = sliceNum - 1
-        if ((not self.splineKnots[sliceZ] is None) and \
-                (layerName in self.splineKnots[sliceZ].keys()) and (not self.splineKnots[sliceZ][layerName] is None)):
+        if (self.splineKnots[sliceZ] is not None
+            and layerName in self.splineKnots[sliceZ].keys()
+            and self.splineKnots[sliceZ][layerName] is not None):
+
             return self.layers[:, :, sliceZ], self.splineKnots[sliceZ][layerName]
 
         layer = self.layers[:, :, sliceZ]
@@ -2466,6 +2464,8 @@ class OCT:
             ys = ys[xs]
             if len(xs) > 100:
                 return self.curve_to_spline(layerName, sliceNum, method="const")
+
+        # splineKnots is initalized as a list of Nones, 1 None for every slice.
         if self.splineKnots[sliceZ] is None:
             self.splineKnots[sliceZ] = dict()
 
@@ -2475,13 +2475,11 @@ class OCT:
     def spline_to_curve(self, layerName, sliceNum):
         sliceZ = sliceNum - 1
 
-        logger.debug('SplineKnots for slice: {}'.format(self.splineKnots[sliceZ] is None))
-        logger.debug('Layer in SplineKnots: {}'.format(layerName in self.splineKnots[sliceZ].keys()))
-        logger.debug('No SplineKnots Info: {}'.format(self.splineKnots[sliceZ][layerName] is None))
+        logger.debug('{}, {}: {}'.format(layerName, sliceNum, self.splineKnots))
         if ((self.splineKnots[sliceZ] is None) or \
                 (not layerName in self.splineKnots[sliceZ].keys()) or self.splineKnots[sliceZ][layerName] is None):
-            print "Warning: No spline info for layer " + layerName + " at slice " + \
-                  str(sliceZ + 1) + " given!"
+            logger.debug("Warning: No spline info for layer " + layerName + " at slice " + str(sliceZ + 1) + " given!")
+            logger.debug('After Warning: {}, {}: {}'.format(layerName, sliceNum, self.splineKnots))
             return None, None
         xs, ys = self.splineKnots[sliceZ][layerName]
         for deg in range(1, 4)[::-1]:
@@ -2540,8 +2538,8 @@ class OCT:
             self.controller.set_uncertainties(info['uncertainties'], sliceNumZ)
 
     def get_spline_knots(self, layerName, sliceZ):
-        if ((self.splineKnots[sliceZ] is None) or \
-                (not layerName in self.splineKnots[sliceZ].keys())):
+        if (self.splineKnots[sliceZ] is None or layerName not in self.splineKnots[sliceZ].keys()):
+            logger.debug('get_spline_knots: No knots defined')
             return None
         return self.splineKnots[sliceZ][layerName]
 
