@@ -1492,7 +1492,7 @@ class OCT:
         constructs for each image in the different subfolders a corresponding image displaying only the layer
         specified in the input.'''
 
-        path = directory + os.path.sep + 'layers'
+        path = str(directory + os.path.sep + 'layers')
         # If layers are already extracted, skip
         if os.path.exists(path) and len([f for f in listdir(path) if isfile(join(path, f))]) > 0:
             return
@@ -2475,6 +2475,9 @@ class OCT:
     def spline_to_curve(self, layerName, sliceNum):
         sliceZ = sliceNum - 1
 
+        logger.debug('SplineKnots for slice: {}'.format(self.splineKnots[sliceZ] is None))
+        logger.debug('Layer in SplineKnots: {}'.format(layerName in self.splineKnots[sliceZ].keys()))
+        logger.debug('No SplineKnots Info: {}'.format(self.splineKnots[sliceZ][layerName] is None))
         if ((self.splineKnots[sliceZ] is None) or \
                 (not layerName in self.splineKnots[sliceZ].keys()) or self.splineKnots[sliceZ][layerName] is None):
             print "Warning: No spline info for layer " + layerName + " at slice " + \
@@ -2630,6 +2633,7 @@ class OCT:
                             mindist = dist
         return minx, miny
 
+    """ Not used """
     def show_images(self, images, r, c, titles=[], d=0, save_path="", block=True):
         i = 1
         for img in images:

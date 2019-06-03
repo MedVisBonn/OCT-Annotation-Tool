@@ -2687,7 +2687,7 @@ class Ui_MainWindow(object):
                 self.actionShowEnfaceDrusen.setEnabled(False)
         self.activate_tool_for_window()
         self.enfaceDrusenMenu.setEnabled(True)
-
+    """ Not used """
     def show_3d_action(self):
 
         vol = self.oct_controller.get_PED_volume()
@@ -2715,7 +2715,7 @@ class Ui_MainWindow(object):
         self.uiDrusenInfoTable.set_data(cx, cy, area, height, volume, largeR, smallR, theta)
         self.uiDrusenInfoTable.enable_export()
         self.subwindowDrusenInfoViewer.show()
-
+    """ Not used """
     def show_image(self, image, block=True):
         plt.imshow(image, cmap=plt.get_cmap('gray'))
         plt.show(block)
