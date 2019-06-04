@@ -17,6 +17,7 @@ import pandas as pd
 from skimage import io
 from os import listdir
 from scipy import misc
+from scipy.interpolate import UnivariateSpline
 import skimage.measure as skm
 from PyQt4 import QtCore, QtGui
 from os.path import isfile, join
@@ -117,7 +118,7 @@ class OCT:
         self.drusenDistances = list()
         self.drusenOverallDistance = 10000
 
-        self.splineKnots = None
+        self.splineKnots = {'RPE': dict(), 'BM': dict()}
 
         self.evaluateLayers = False
         self.evaluateDrusen = False
@@ -173,7 +174,7 @@ class OCT:
         self.splineKnots = knots
 
     def set_spline_knots_layer(self, knots, sliceZ, layerName):
-        self.splineKnots[sliceZ][layerName] = knots
+        self.splineKnots[layerName][sliceZ] = knots
 
     def set_scan_path(self, scanPath):
         self.scanPath = scanPath
@@ -841,8 +842,6 @@ class OCT:
         if self.layerSegmenter is None:
             self.layerSegmenter = deeplearning.DeepLearningLayerSeg(self)
 
-        # Initialize Knots
-        self.splineKnots = [None] * self.layers.shape[2]
         if self.rpeCSPs is None:
             self.rpeCSPs = [None] * self.layers.shape[2]
         if self.bmProbable is None:
@@ -970,25 +969,29 @@ class OCT:
         return self.enfaceDrusen
 
     def get_RPE_layer(self, seg_img):
-        if len(np.unique(seg_img)) == 4:
-            tmp = np.zeros(seg_img.shape)
-            tmp[np.where(seg_img == 170)] = 255
-            tmp[np.where(seg_img == 255)] = 255
-            y, x = np.where(tmp == 255)
+        """ Return indices of the RPE layer
 
-        else:
-            y, x = np.where(seg_img == 255)
-        tmp = np.zeros(seg_img.shape)
-        tmp[y, x] = 255
-        y, x = np.where(tmp > 0)
+        The RPE layer is encoded by either 170 or 255
+        :param seg_img: Array holding the layer segmentation
+        :return: Indices of the RPE layer (y, x)
+
+        >>> get_RPE_layer(np.array([[170, 0, 0],[0, 255, 0],[0,0,127]]))
+        (array([0, 1]), array([0, 1]))
+        """
+        y, x = np.where(np.isin(seg_img, [170, 255]))
         return y, x
 
     def get_BM_layer(self, seg_img):
-        tmp = np.zeros(seg_img.shape)
-        tmp[np.where(seg_img == 170)] = 255
-        tmp[np.where(seg_img == 85)] = 255
-        tmp[np.where(seg_img == 127)] = 255
-        y, x = np.where(tmp == 255)
+        """ Return indices of the BM layer
+
+        The BM layer is encoded by 170, 85, or 127
+        :param seg_img: Array holding the layer segmentation
+        :return: Indices of the BM layer (y, x)
+
+        >>> get_BM_layer(np.array([[255, 0, 85],[0, 170, 0],[127,0,255]]))
+        (array([0, 1, 2]), array([2, 1, 0]))
+        """
+        y, x = np.where(np.isin(seg_img, [170, 85, 127]))
         return y, x
 
     def get_RPE_location(self, seg_img):
@@ -1328,10 +1331,12 @@ class OCT:
             rpeImg, bmImg = self.decompose_into_RPE_BM_images(self.layers[:, :, sliceNumZ])
             layer = self.combine_RPE_BM_images(rpeImg, layer.astype(int) * 255)
             info['suggestExtent'] = self.bmSuggestExtent
-        if (not self.splineKnots is None and not self.splineKnots[sliceNumZ] is None and (
-                layerName in self.splineKnots[sliceNumZ].keys()) and (
-        not self.splineKnots[sliceNumZ][layerName] is None)):
-            self.splineKnots[sliceNumZ][layerName] = None
+
+        #if (self.splineKnots is not None
+        #        and self.splineKnots[sliceNumZ] is not None
+        #        and layerName in self.splineKnots[sliceNumZ].keys()
+        #        and self.splineKnots[sliceNumZ][layerName] is not None):
+        #    self.splineKnots[sliceNumZ][layerName] = None
         self.layers[:, :, sliceNumZ] = np.copy(layer)
         self.editedLayers[sliceNumZ][layerName] = True
         return info
@@ -2403,91 +2408,84 @@ class OCT:
         smallM = np.sqrt(xM ** 2 + zM ** 2)
         return self.cx * self.hx, self.cy * self.hz, areaM, heightM, volumeM, largeM, smallM, self.theta
 
-    def curve_to_spline(self, layerName, sliceNum, method="estimate"):
-        """
-        If curve has not knots already, compute knots. Otherwise use old knots
-        for the spline.
-        """
-        logger.debug('Curve to splines')
-        sliceZ = sliceNum - 1
-        if (self.splineKnots[sliceZ] is not None
-            and layerName in self.splineKnots[sliceZ].keys()
-            and self.splineKnots[sliceZ][layerName] is not None):
+    def curve_to_spline(self, layerName, sliceNum, method="estimate", sampling_rate=10):
+        """ Compute spline knots for layer curve
 
-            return self.layers[:, :, sliceZ], self.splineKnots[sliceZ][layerName]
+        :param layerName:
+        :param sliceNum:
+        :param method:
+        :param sampling_rate:
+        :return:
+        """
+        sliceZ = sliceNum - 1
+
+        # Return knots if already computed
+        if sliceZ in self.splineKnots[layerName].keys():
+            return self.layers[:, :, sliceZ], self.splineKnots[layerName][sliceZ]
 
         layer = self.layers[:, :, sliceZ]
-        h, w = layer.shape
-        samplingRate = 10
 
-        xs = np.arange(0, w, samplingRate)
+        # Get layer indices
         if layerName == 'RPE':
-            ys, xxs = self.get_RPE_layer(layer[:, xs])
+            y, x = self.get_RPE_layer(layer)
         elif layerName == 'BM':
-            ys, xxs = self.get_BM_layer(layer[:, xs])
+            y, x = self.get_BM_layer(layer)
+
+
         if method == "const":
-            tmp = np.zeros((h, len(xs)))
-            tmp[ys, xxs] = 1.
-            ys = np.argmax(tmp, axis=0)
-            # Delete samples where no layer exists
-            delInd = np.where(np.max(tmp, axis=0) == 0)
-            xs = np.delete(xs, delInd)
-            ys = np.delete(ys, delInd)
+            # Choose every nth point of the layer, depends on sampling rate
+            xs = x[::sampling_rate].copy()
+            ys = y[::sampling_rate].copy()
+
         elif method == "estimate":
-            if layerName == 'RPE':
-                ys, xxs = self.get_RPE_layer(layer)
-            elif layerName == 'BM':
-                ys, xxs = self.get_BM_layer(layer)
-            argx = np.argsort(xxs)
-            xxs = xxs[argx]
-            ys = ys[argx]
-            diff = xxs[:-1] - xxs[1:]
-            dup = np.where(diff == 0)[0]
-            if len(dup) > 0:
-                xxs = np.delete(xxs, dup)
-                ys = np.delete(ys, dup)
-            spl = sc.interpolate.UnivariateSpline(xxs, ys)
-            wsize = len(xxs)
+            # Sort the indices
+            argx = np.argsort(x)
+            x = x[argx]
+            y = y[argx]
+
+            # Remove duplicates
+            x, unique_indices = np.unique(x, return_index=True)
+            y = y[unique_indices]
+
+            # Fit spline
+            spl = UnivariateSpline(x, y)
+            wsize = len(x)
+
+            # Smooth the spline
             for s in np.arange(0, wsize)[::-1]:
                 if spl.get_residual() < 50:
                     break
                 spl.set_smoothing_factor(s)
             xs = np.asarray(spl.get_knots()).astype(int)
-            tmp = np.zeros((h, w))
-            tmp[ys, xxs] = 1.
-            delInd = np.where(xs > w - 1)
-            xs = np.delete(xs, delInd)
-            delInd = np.where(xs < 0)
-            xs = np.delete(xs, delInd)
-            xs = np.unique(xs)
-            ys = np.argmax(tmp, axis=0)
-            ys = ys[xs]
+            ys = y[xs]
+
             if len(xs) > 100:
                 return self.curve_to_spline(layerName, sliceNum, method="const")
+        else:
+            msg = 'Method "{}" not supported'.format(method)
+            logger.debug(msg)
+            raise ValueError(msg)
 
-        # splineKnots is initalized as a list of Nones, 1 None for every slice.
-        if self.splineKnots[sliceZ] is None:
-            self.splineKnots[sliceZ] = dict()
+        self.splineKnots[layerName][sliceZ] = [xs, ys]
 
-        self.splineKnots[sliceZ][layerName] = [xs, ys]
-        return self.layers[:, :, sliceZ], self.splineKnots[sliceZ][layerName]
+        return self.layers[:, :, sliceZ], self.splineKnots[layerName][sliceZ]
 
     def spline_to_curve(self, layerName, sliceNum):
         sliceZ = sliceNum - 1
 
         logger.debug('{}, {}: {}'.format(layerName, sliceNum, self.splineKnots))
-        if ((self.splineKnots[sliceZ] is None) or \
-                (not layerName in self.splineKnots[sliceZ].keys()) or self.splineKnots[sliceZ][layerName] is None):
+        if sliceZ not in self.splineKnots[layerName].keys():
             logger.debug("Warning: No spline info for layer " + layerName + " at slice " + str(sliceZ + 1) + " given!")
             logger.debug('After Warning: {}, {}: {}'.format(layerName, sliceNum, self.splineKnots))
             return None, None
-        xs, ys = self.splineKnots[sliceZ][layerName]
+        xs, ys = self.splineKnots[layerName][sliceZ]
         for deg in range(1, 4)[::-1]:
             try:
                 tck = sc.interpolate.splrep(xs, ys, k=deg)
                 break
             except:
-                print "Warning: No spline of degree ", deg, " can be produced!"
+                logger.debug("No spline of degree {} can be produced!".format(deg))
+
         ys = sc.interpolate.splev(np.arange(0, self.layers.shape[1]), tck)
         rpeImg, bmImg = self.decompose_into_RPE_BM_images(self.layers[:, :, sliceZ])
         newCurve = np.zeros(rpeImg.shape)
@@ -2516,14 +2514,14 @@ class OCT:
         elif layerName == 'BM':
             layer = self.combine_RPE_BM_images(rpeImg, newCurve)
         self.layers[:, :, sliceZ] = np.copy(layer)
-        return layer, self.splineKnots[sliceZ][layerName]
+        return layer, self.splineKnots[layerName][sliceZ]
 
     def spline_update_using_info(self, info):
         sliceNumZ = info['sliceNum'] - 1
         layerName = info['layerName']
-        if not info['layer'] is None:
+        if info['layer'] is not None:
             self.layers[:, :, sliceNumZ] = info['layer']
-            self.splineKnots[sliceNumZ][layerName] = info['knots']
+            self.splineKnots[layerName][sliceNumZ] = info['knots']
             self.layerSegmenter.set_uncertainties(info['uncertainties'], sliceNumZ)
             self.controller.set_uncertainties(info['uncertainties'], sliceNumZ)
 
@@ -2532,16 +2530,15 @@ class OCT:
         layerName = info['layerName']
         if not layer is None:
             self.layers[:, :, sliceNumZ] = layer
-            self.splineKnots[sliceNumZ][layerName] = knots
+            self.splineKnots[layerName][sliceNumZ] = knots
             self.editedLayers[sliceNumZ][layerName] = info['prevStatus']
             self.layerSegmenter.set_uncertainties(info['uncertainties'], sliceNumZ)
             self.controller.set_uncertainties(info['uncertainties'], sliceNumZ)
 
     def get_spline_knots(self, layerName, sliceZ):
-        if (self.splineKnots[sliceZ] is None or layerName not in self.splineKnots[sliceZ].keys()):
-            logger.debug('get_spline_knots: No knots defined')
-            return None
-        return self.splineKnots[sliceZ][layerName]
+        if sliceZ not in self.splineKnots[layerName].keys():
+            self.curve_to_spline(layerName, sliceZ+1)
+        return self.splineKnots[layerName][sliceZ]
 
     def add_spline_knot(self, y, x, layerName, sliceZ):
         if x < 0 or x >= self.width or y < 0 or y >= self.height:
@@ -2562,8 +2559,7 @@ class OCT:
             sortedy = knotsy[sortInd]
             knotsx = sortedx
             knotsy = sortedy
-        del self.splineKnots[sliceZ][layerName]
-        self.splineKnots[sliceZ][layerName] = [knotsx, knotsy]
+        self.splineKnots[layerName][sliceZ] = [knotsx, knotsy]
 
     def delete_spline_knot(self, y, x, layerName, sliceZ):
         if x < 0 or x >= self.width or y < 0 or y >= self.height:
@@ -2589,8 +2585,7 @@ class OCT:
         ind = np.where(knotsx == minx)
         knotsx = np.delete(knotsx, ind)
         knotsy = np.delete(knotsy, ind)
-        del self.splineKnots[sliceZ][layerName]
-        self.splineKnots[sliceZ][layerName] = [knotsx, knotsy]
+        self.splineKnots[layerName][sliceZ] = [knotsx, knotsy]
 
     def is_knot(self, y, x, layerName, sliceZ):
         if x < 0 or x >= self.width or y < 0 or y >= self.height:
