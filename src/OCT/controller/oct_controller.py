@@ -179,25 +179,18 @@ class OCTController:
         debug = False
         evaluateLayers = False
         evaluateDrusen = False
-        if debug:
-            if evaluateLayers:
-                scanPath = "/home/gorgi/Desktop/extraCodeDataForEditor/220814_145"
-            elif evaluateDrusen:
-                scanPath = "/home/gorgi/Desktop/Data/Data/210715_145"
-            else:
-                #                scanPath="/home/gorgi/Desktop/OCT-UnderExtention/OCT/dummyData/210715_145"
-                scanPath = "/home/gorgi/Desktop/OCT-Editting-November-ForMaximilian/OCT-Editing-Tool/src/OCT/dummyData/220814_145"
-            self.lastScanPath = scanPath
-        else:
-            scanPath = str(self.mainWindowUi.get_scan_path(self.lastScanPath))
-            self.lastScanPath = scanPath
+
+        scanPath = str(self.mainWindowUi.get_scan_path(self.lastScanPath))
+        self.lastScanPath = scanPath
         if scanPath != '':
             self.delete_previous()
             self.evaluateLayers = evaluateLayers
             self.evaluateDrusen = evaluateDrusen
             self.oct.set_evaluation_schemes(evaluateLayers, evaluateDrusen)
             self.oct.set_scan_path(scanPath)
-            self.oct.read_scan_from(scanPath)
+            self.oct.load_bscans(scanPath)
+            # old function which supports reading xml exports
+            #self.oct.read_scan_from(scanPath)
             npimg = self.oct.get_scan()[:, :, self.currentScanNumber - 1]
             self.mainWindowUi.show_scan(npimg, self.oct.numSlices)
             self.activaViewerSet.add('scanViewer')
@@ -221,8 +214,12 @@ class OCTController:
             self.oct.import_vol_from(import_path)
 
             npimg = self.oct.get_scan()[:, :, self.currentScanNumber - 1]
+            #slo = self.oct.get_slo()
             self.mainWindowUi.show_scan(npimg, self.oct.numSlices)
+            #self.mainWindowUi.show_slo(slo)
+
             self.activaViewerSet.add('scanViewer')
+
             self.mainWindowUi.set_status_bar(self.lastImportPath)
             return 0
         else:
@@ -518,7 +515,7 @@ class OCTController:
             startpath = self.savePath
         else:
             startpath = os.path.expanduser('~')
-        self.savePath = self.mainWindowUi.get_save_path(startpath)
+        self.savePath = str(self.mainWindowUi.get_save_path(startpath))
 
         # Check wheter a savePath exists, user may have canceled
         if self.savePath is None or self.savePath == '':
