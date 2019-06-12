@@ -198,6 +198,10 @@ class DeepLearningLayerSeg:
     def set_yLength(self, val):
         self.yLength = val
 
+    # Not used
+    def get_yLength(self):
+        return self.yLength
+
     def set_network_info(self):
         sett = self.octScan.controller.get_network_info()
 
@@ -219,8 +223,9 @@ class DeepLearningLayerSeg:
         self.d4a_size = sett['d4a_size']
         return
 
-    def set_number_of_tiles(self, num):
-        self.numOfTiles = num
+    # Not used
+    #def set_number_of_tiles(self, num):
+    #    self.numOfTiles = num
 
     def set_uncertainties(self, uncertainties, sliceNumZ):
         if uncertainties[0] is None:
@@ -230,8 +235,6 @@ class DeepLearningLayerSeg:
             self.entropyVals[sliceNumZ] = uncertainties[1]
             self.probabilityVals[sliceNumZ] = uncertainties[2]
 
-    def get_yLength(self):
-        return self.yLength
 
     def get_uncertainties(self, sliceNumZ):
         if len(self.uncertaintyValues) > 0:
@@ -240,11 +243,12 @@ class DeepLearningLayerSeg:
         else:
             return None, None, None
 
-    def get_uncertainties_per_bscan_at(self, sliceNumZ):
-        if len(self.entropyValsPerScan) > 0:
-            return (self.entropyValsPerScan[sliceNumZ],
-                    self.probabilityValsPerScan[sliceNumZ])
-        return None, None
+    # Not used
+    #def get_uncertainties_per_bscan_at(self, sliceNumZ):
+    #    if len(self.entropyValsPerScan) > 0:
+    #        return (self.entropyValsPerScan[sliceNumZ],
+    #                self.probabilityValsPerScan[sliceNumZ])
+    #    return None, None
 
     def get_uncertainties_per_bscan(self):
         if len(self.entropyValsPerScan) > 0:
@@ -258,9 +262,9 @@ class DeepLearningLayerSeg:
         if caffeFound:
 
             # Initial steps, scan preparation
-            scans = self.preprocess_data(scans)
+            scans = self._preprocess_data(scans)
             # Do image tiling / Feed into the network
-            scores = self.tiled_forward(scans)
+            scores = self._tiled_forward(scans)
             # Keep probability images
             probMaps = self.convert_scores_to_probabilities(scores)
             self.octScan.set_prob_maps(probMaps)
@@ -271,7 +275,7 @@ class DeepLearningLayerSeg:
             self.octScan.controller.warn_cannot_open_network()
             return None
 
-    def preprocess_data(self, indata):
+    def _preprocess_data(self, indata):
         if self.normImage:
             indata = indata - np.min(indata)
             if np.max(indata) != 0.0:
@@ -289,7 +293,7 @@ class DeepLearningLayerSeg:
         indata = np.transpose(indata, (1, 0, 2, 3))
         return indata
 
-    def tiled_forward(self, indata):
+    def _tiled_forward(self, indata):
 
         debug = False
         #  compute input and output sizes (for v-shaped 4-resolutions network)
@@ -713,28 +717,29 @@ class DeepLearningLayerSeg:
         entropy = sc.stats.entropy(p_data)  # input probabilities to get the entropy
         return entropy
 
-    def show_image(self, image, block=True):
-        plt.imshow(image, cmap=plt.get_cmap('gray'))
-        plt.show(block)
-        QtGui.QApplication.processEvents()
+    # Not used
+    #def show_image(self, image, block=True):
+    #    plt.imshow(image, cmap=plt.get_cmap('gray'))
+    #    plt.show(block)
+    #    QtGui.QApplication.processEvents()
 
-    def show_images(self, images, r, c, titles=[], d=0, save_path="", block=True):
-        i = 1
+    #def show_images(self, images, r, c, titles=[], d=0, save_path="", block=True):
+    #    i = 1
 
-        for img in images:
-            ax = plt.subplot(r, c, i)
-            ax.xaxis.set_visible(False)
-            ax.yaxis.set_visible(False)
-            if len(titles) != 0:
-                ax.set_title(titles[i - 1])
-            if len(img.shape) > 2:
-                plt.imshow(img)
-            else:
-                plt.imshow(img, cmap=plt.get_cmap('gray'))
-            i += 1
+    #    for img in images:
+    #        ax = plt.subplot(r, c, i)
+    #        ax.xaxis.set_visible(False)
+    #        ax.yaxis.set_visible(False)
+    #        if len(titles) != 0:
+    #            ax.set_title(titles[i - 1])
+    #        if len(img.shape) > 2:
+    #            plt.imshow(img)
+    #        else:
+    #            plt.imshow(img, cmap=plt.get_cmap('gray'))
+    #        i += 1
 
-        plt.show(block)
-        QtGui.QApplication.processEvents()
+    #    plt.show(block)
+    #    QtGui.QApplication.processEvents()
 
     def find_shortest_path(self, probMaps, fromDisk=False):
         if fromDisk:
@@ -872,8 +877,9 @@ class DeepLearningLayerSeg:
         score2[ys, xs] = 10
         return path2
 
-    def gaussian(self, x, sigma):
-        return (1. / (sigma * np.sqrt(2. * np.pi))) * np.exp(-(x ** 2 / (2. * sigma ** 2)))
+    # Not used
+    #def gaussian(self, x, sigma):
+    #    return (1. / (sigma * np.sqrt(2. * np.pi))) * np.exp(-(x ** 2 / (2. * sigma ** 2)))
 
     def update_shortest_path_in_slice(self, layerName, sliceNum, yLength=1.):
         probMaps = self.octScan.get_probmaps()
