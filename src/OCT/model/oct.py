@@ -8,6 +8,8 @@ import logging
 
 import re
 import os
+from os import listdir
+from os.path import isfile, join
 import copy
 import pickle
 import imageio
@@ -15,12 +17,12 @@ import numpy as np
 import scipy as sc
 import pandas as pd
 from skimage import io
-from os import listdir
+
 from scipy import misc
 from scipy.interpolate import UnivariateSpline
 import skimage.measure as skm
 from PyQt4 import QtCore, QtGui
-from os.path import isfile, join
+
 import xml.etree.ElementTree as ET
 from matplotlib import pyplot as plt
 
@@ -261,12 +263,14 @@ class OCT:
                 return self.uncerProBM
         return None
 
+    ## Saving
+
     def save_bscans(self, savePath):
         if self.scans is not None:
             logger.debug('{},{}'.format(np.max(self.scans), self.scans.dtype))
             for i in range(self.scans.shape[2]):
                 scan_path = os.path.join(savePath, str(i) + '.tif')
-                imageio.imwrite(scan_path, self.scans[:, :, i].astype(np.int8))
+                imageio.imwrite(scan_path, self.scans[:, :, i].astype(np.uint8), format='.tif')
 
     def save_drusen(self, savePath):
         savePath = os.path.join(savePath, 'drusen')
@@ -290,9 +294,9 @@ class OCT:
         savePath = os.path.join(saveP, 'layers')
         savePath2 = os.path.join(saveP, 'probabilityMaps')
 
-        self.create_directory(savePath)
-        self.create_directory(savePath2)
         if self.layers is not None:
+            self.create_directory(savePath)
+            self.create_directory(savePath2)
             layers = self.change_layers_format_for_saving()
             if self.saveFormat == 'pkl':
                 layerLoc = dict()
@@ -354,30 +358,11 @@ class OCT:
                 pStep = 100 / float(max(1, self.hrfs.shape[2]))
                 for s in range(self.hrfs.shape[2]):
                     self.controller.update_progress_bar_value(pStep)
-                    misc.imsave(os.path.join(savePath, str(self.scanIDs[s]) + \
-                                             '-hrf.png'), self.hrfs[:, :, s])
+                    imageio.imwrite(os.path.join(savePath, str(self.scanIDs[s]) + '-hrf.png'),
+                                    self.hrfs[:, :, s])
                 self.controller.hide_progress_bar()
             np.savetxt(os.path.join(savePath, 'hrfs.txt'), self.hrfStatus)
             self.save_bbox(os.path.join(savePath, 'hrfs-bounding-box.txt'), \
-                           self.hrfBBox)
-
-    def save_hrfs_as(self, saveName):
-        if self.hrfs is not None:
-            if self.saveFormat == 'pkl':
-                hrfLoc = np.where(self.hrfs > 0)
-                self.write_pickle_data(saveName, hrfLoc)
-            else:
-                savePath, saveName = os.path.split(saveName)
-                savePath = os.path.join(savePath, 'HRF')
-                self.controller.show_progress_bar("Saving")
-                pStep = 100 / float(max(1, self.hrfs.shape[2]))
-                for s in range(self.hrfs.shape[2]):
-                    self.controller.update_progress_bar_value(pStep)
-                    misc.imsave(os.path.join(savePath, str(self.scanIDs[s]) + \
-                                             '-' + saveName + '.png'), self.hrfs[:, :, s])
-                self.controller.hide_progress_bar()
-            np.savetxt(os.path.join(savePath, saveName + '.txt'), self.hrfStatus)
-            self.save_bbox(os.path.join(savePath, saveName + '-bounding-box.txt'), \
                            self.hrfBBox)
 
     def save_gas(self, savePath):
@@ -413,40 +398,6 @@ class OCT:
                 self.controller.hide_progress_bar()
             self.save_bbox(os.path.join(savePath, 'ngas-bounding-box.txt'), \
                            self.ngaBBox)
-
-    def save_gas_as(self, saveName):
-        if self.gas is not None:
-            if self.saveFormat == 'pkl':
-                gaLoc = np.where(self.gas > 0)
-                self.write_pickle_data(saveName, gaLoc)
-            else:
-                savePath, saveName = os.path.split(saveName)
-                savePath = os.path.join(savePath, 'GA')
-                self.controller.show_progress_bar("Saving")
-                pStep = 100 / float(max(1, self.gas.shape[2]))
-                for s in range(self.gas.shape[2]):
-                    self.controller.update_progress_bar_value(pStep)
-                    misc.imsave(os.path.join(savePath, str(self.scanIDs[s]) + '-' + \
-                                             saveName + '.png'), self.gas[:, :, s])
-                self.controller.hide_progress_bar()
-            self.save_bbox(os.path.join(savePath, saveName + '-bounding-box.txt'), \
-                           self.ngaBBox)
-
-    def save_ngas_as(self, saveName):
-        if self.ngas is not None:
-            if self.saveFormat == 'pkl':
-                gaLoc = np.where(self.ngas > 0)
-                self.write_pickle_data(saveName, gaLoc)
-            else:
-                savePath, saveName = os.path.split(saveName)
-                savePath = os.path.join(savePath, 'nGA')
-                self.controller.show_progress_bar("Saving")
-                pStep = 100 / float(max(1, self.ngas.shape[2]))
-                for s in range(self.ngas.shape[2]):
-                    self.controller.update_progress_bar_value(pStep)
-                    misc.imsave(os.path.join(savePath, str(self.scanIDs[s]) + '-' + \
-                                             saveName + '.png'), self.ngas[:, :, s])
-                self.controller.hide_progress_bar()
 
     def save_enface(self, savePath):
         savePath = os.path.join(savePath, 'reticular-drusen')
@@ -492,11 +443,202 @@ class OCT:
         df.to_csv(saveName, sep='\t')
         return
 
+    ## Loading
+
+    def load_probmaps(self):
+        path = os.path.join(self.scanPath, 'probabilityMaps')
+
+        try:
+            nameing = 'layers.tif'
+            self.controller.show_progress_bar()
+            self.progressBarValue = 1
+            self.controller.set_progress_bar_value(self.progressBarValue)
+
+            self.probmaps = np.zeros(self.scans.shape[:2], +(4,), self.scans.shape[-1])
+            files = [f for f in os.path.listdir(path) if os.path.isfile(os.path.join(path, f))]
+            stepsize = 100 / len(files)
+            for filename in files:
+                i, j, ftype = filename.split('-')
+                if ftype == nameing:
+                    self.probmaps[:, :, j, i] = io.imread(filename)
+
+                self.controller.update_progress_bar_value(stepsize)
+
+            self.controller.hide_progress_bar()
+        except:
+            raise Exception('No probability maps found for loading')
+
+        self.layerSegmenter.layers = self.layers
+
+    def load_bscans(self, savePath):
+        # bscans are saved like 10.tif but we do not load enface.tif for example
+        scanregex = re.compile(r'\d+.tif')
+        files = [f for f in listdir(savePath) if isfile(join(savePath, f)) and scanregex.search(f) is not None]
+        files.sort(key=self.natural_keys)
+        img0 = imageio.imread(join(savePath, files[0]))
+
+        self.scans = np.zeros(img0.shape + (len(files),))
+        self.scans[..., 0] = img0
+
+        for i in range(1, len(files)):
+            self.scans[..., i] = imageio.imread(join(savePath, files[i]))
+
+        self.scanIDs = list(range(1, len(files)+1))
+        self.numSlices = self.scans.shape[2]
+        self.width = self.scans.shape[1]
+        self.height = self.scans.shape[0]
+
+        if self.numSlices > 50:
+            self.zRate = 2
+            self.bResolution = 'high'
+        else:
+            self.zRate = 13
+            self.bResolution = 'low'
+
+    def load_hrfs(self):
+        path = os.path.join(self.scanPath, 'HRF')
+
+        if self.saveFormat == 'pkl':
+            hrfLoc = self.read_pickle_data(os.path.join(path, 'hrfs.pkl'))
+            self.hrfs = np.zeros(self.scans.shape)
+            self.hrfs[hrfLoc] = 255
+
+        else:
+            if self.saveFormat == 'png':
+                nameing = 'hrf.png'
+                self.hrfs = self.load_images(path, nameing)
+
+        return self.hrfs
+
+    def load_gas(self):
+        path = os.path.join(self.scanPath, 'GA')
+
+        if self.saveFormat == 'pkl':
+            gasLoc = self.read_pickle_data(os.path.join(path, 'gas.pkl'))
+            self.gas = np.zeros(self.scans.shape)
+            self.gas[gasLoc] = 255
+
+        else:
+            if self.saveFormat == 'png':
+                nameing = 'ga.png'
+                self.gas = self.load_images(path, nameing)
+        return self.gas
+
+    def load_ngas(self):
+        path = os.path.join(self.scanPath, 'nGA')
+
+        if self.saveFormat == 'pkl':
+            ngasLoc = self.read_pickle_data(os.path.join(path, 'ngas.pkl'))
+            self.ngas = np.zeros(self.scans.shape)
+            self.ngas[ngasLoc] = 255
+
+        else:
+            if self.saveFormat == 'png':
+                nameing = 'nga.png'
+                self.ngas = self.load_images(path, nameing)
+        return self.ngas
+
+    def load_images(self, path, naming):
+        self.controller.show_progress_bar()
+        self.progressBarValue = 1
+        self.controller.set_progress_bar_value(self.progressBarValue)
+
+        images = np.zeros(self.scans.shape)
+        regex = re.compile('\d-{}'.format(naming))
+        files = [f for f in listdir(path) if os.path.isfile(os.path.join(path, f)) and regex.search(f) is not None]
+        files.sort(key=self.natural_keys)
+
+        for i in range(len(files)):
+            filepath = join(path, files[i])
+            images[:, :, i] = imageio.imread(filepath)
+
+        self.controller.hide_progress_bar()
+        return images
+
+    def load_layers(self):
+        path = os.path.join(self.scanPath, 'layers')
+
+        if self.saveFormat == 'pkl':
+            layersLoc = self.read_pickle_data(os.path.join(path, 'layers.pkl'))
+            self.layers = np.zeros(self.scans.shape)
+            keys = layersLoc.keys()
+            for v in keys:
+                self.layers[layersLoc[v]] = v
+
+        else:
+            if self.saveFormat == 'png':
+                nameing = 'layers.png'
+                self.layers = self.load_images(path, nameing)
+            else:
+                try:
+                    naming = 'BinSeg.tif'
+                    self.layers = self.load_images(path, naming)
+                except:
+                    raise Exception('No layers found for loading')
+
+        self.change_layers_format_for_GUI()
+
+        return self.layers
+
+    def load_drusen(self, hfilter):
+        path = os.path.join(self.scanPath, 'drusen')
+        if not os.path.exists(path) or not os.listdir(path):
+            raise Exception('No saved drusen available')
+
+        if self.saveFormat == 'pkl':
+            druLoc = self.read_pickle_data(os.path.join(path, 'drusen.pkl'))
+            self.drusen = np.zeros(self.scans.shape)
+            self.drusen[druLoc] = 255
+
+        else:
+            if self.saveFormat == 'png':
+                nameing = 'drusen.png'
+                drusen = self.load_images(path, nameing)
+            else:
+                try:
+                    naming = 'binmask.tif'
+                    drusen = self.load_images(path, naming)
+                except:
+                    raise Exception('No layers found for loading')
+
+        drusen[drusen > 0] = 1
+        # drusen = self.filter_drusen_by_size(drusen)
+        # if (hfilter > 0):
+        #    drusen = self.filter_druse_by_max_height(drusen, hfilter)
+
+        self.drusen = drusen * 255
+
+        if self.evaluateDrusen:
+            self.get_GT_drusen()
+
+        return self.drusen
+
+    ## Getters
+
     def get_scan_path(self):
         return self.scanPath
 
     def get_scan(self):
         return self.scans
+
+    def get_slo(self):
+        return self.slo
+
+    def get_probmaps(self):
+        """
+
+        :return:
+        """
+        if self.probmaps is None:
+            try:
+                self.probmaps = self.load_probmaps()
+            except:
+                self.layers, self.probmaps = self.compute_layers()
+
+        if self.layerSegmenter is None:
+            self.layerSegmenter = deeplearning.DeepLearningLayerSeg(self)
+
+        return self.probmaps
 
     def get_bbox_from_file_reticular(self, fileName):
         """
@@ -549,21 +691,6 @@ class OCT:
         except:
             return hrfBBox
 
-    def load_hrfs(self):
-        path = os.path.join(self.scanPath, 'HRF')
-
-        if self.saveFormat == 'pkl':
-            hrfLoc = self.read_pickle_data(os.path.join(path, 'hrfs.pkl'))
-            self.hrfs = np.zeros(self.scans.shape)
-            self.hrfs[hrfLoc] = 255
-
-        else:
-            if self.saveFormat == 'png':
-                nameing = 'hrfs.png'
-                self.hrfs = self.load_images(path, nameing)
-
-        return self.hrfs
-
     def get_hrfs(self):
         """
         Read the HRF segmentation from the disk if they exist.
@@ -592,19 +719,7 @@ class OCT:
         logger.debug('HRFs types: {}, {}, {}'.format(type(self.hrfs), type(self.hrfStatus), type(self.hrfBBox)))
         return self.hrfs, self.hrfStatus, self.hrfBBox
 
-    def load_gas(self):
-        path = os.path.join(self.scanPath, 'GA')
 
-        if self.saveFormat == 'pkl':
-            gasLoc = self.read_pickle_data(os.path.join(path, 'gas.pkl'))
-            self.gas = np.zeros(self.scans.shape)
-            self.gas[gasLoc] = 255
-
-        else:
-            if self.saveFormat == 'png':
-                nameing = 'ga.png'
-                self.gas = self.load_images(path, nameing)
-        return self.gas
 
     def get_gas(self):
         """
@@ -617,21 +732,6 @@ class OCT:
                 self.gas = np.zeros(self.scans.shape)
 
         return self.gas
-
-    def load_ngas(self):
-        path = os.path.join(self.scanPath, 'nGA')
-
-        if self.saveFormat == 'pkl':
-            ngasLoc = self.read_pickle_data(os.path.join(path, 'ngas.pkl'))
-            self.ngas = np.zeros(self.scans.shape)
-            self.ngas[ngasLoc] = 255
-
-        else:
-            if self.saveFormat == 'png':
-                nameing = 'nga.png'
-                self.ngas = self.load_images(path, nameing)
-        return self.ngas
-
 
     def get_ngas(self):
         """
@@ -663,16 +763,6 @@ class OCT:
 
     def get_edited_layers(self):
         return self.editedLayers
-
-    def set_slice_edited(self, sliceNum, layerName, status):
-        if layerName == 'RPE':
-            self.editedLayers[sliceNum - 1]['RPE'] = status
-        elif layerName == 'BM':
-            self.editedLayers[sliceNum - 1]['BM'] = status
-
-    def set_evaluation_schemes(self, evaluateLayers, evaluateDrusen):
-        self.evaluateLayers = evaluateLayers
-        self.evaluateDrusen = evaluateDrusen
 
     def get_GT_drusen(self):
         """
@@ -759,76 +849,6 @@ class OCT:
     def get_layer(self, sliceNumZ):
         return self.layers[:, :, sliceNumZ]
 
-    def compute_layers(self):
-        """
-
-        :return:
-        """
-        # Use Caffe to create initial layer segmentation
-        self.layerSegmenter = deeplearning.DeepLearningLayerSeg(self)
-        # TODO: Function returns layers and sets probMaps. Make this explicit
-        layers = self.layerSegmenter.get_layer_seg_from_deepnet(self.scans)
-        layers[:, :, :] = self.convert_indices(layers[:, :, :])
-        probmaps = np.transpose(self.probmaps, (1, 0, 2, 3)).astype('float16')
-        self.probmaps = probmaps
-
-        progressVal = self.get_progress_val()
-        self.set_progress_val(progressVal + 2)
-        self.update_progress_bar()
-
-        # try:
-        #    self.certainSlices = list(np.where(np.loadtxt(os.path.join(probPath, \
-        #                                                               'prob-entropy.txt')) == 0.05)[0])
-        # except:
-        #    self.certainSlices = list()
-
-        self.progressBarValue = 100
-        self.controller.set_progress_bar_value(self.progressBarValue)
-        self.controller.hide_progress_bar()
-        QtGui.QApplication.processEvents()
-        return layers, probmaps
-
-    def load_images(self, path, naming):
-        self.controller.show_progress_bar()
-        self.progressBarValue = 1
-        self.controller.set_progress_bar_value(self.progressBarValue)
-
-        images = np.zeros(self.scans.shape)
-        for filename in [f for f in os.path.listdir(path)
-                         if os.path.isfile(os.path.join(path, f))]:
-
-            i, ftype = filename.split('-')
-            if ftype == naming:
-                images[:, :, i] = io.imread(filename)
-
-        self.controller.hide_progress_bar()
-        return images
-
-    def load_layers(self):
-        path = os.path.join(self.scanPath, 'layers')
-
-        if self.saveFormat == 'pkl':
-            layersLoc = self.read_pickle_data(os.path.join(path, 'layers.pkl'))
-            self.layers = np.zeros(self.scans.shape)
-            keys = layersLoc.keys()
-            for v in keys:
-                self.layers[layersLoc[v]] = v
-
-        else:
-            if self.saveFormat == 'png':
-                nameing = 'layers.png'
-                self.layers = self.load_images(path, nameing)
-            else:
-                try:
-                    naming = 'BinSeg.tif'
-                    self.layers = self.load_images(path, naming)
-                except:
-                    raise Exception('No layers found for loading')
-
-        self.change_layers_format_for_GUI()
-
-        return self.layers
-
     def get_layers(self):
         """
         Find the layer segmentation for the RPE and BM layers.
@@ -858,39 +878,6 @@ class OCT:
 
     def get_current_path(self):
         return self.scanPath
-
-    def load_drusen(self, hfilter):
-        path = os.path.join(self.scanPath, 'drusen')
-        if not os.path.exists(path) or not os.listdir(path):
-            raise Exception('No saved drusen available')
-
-        if self.saveFormat == 'pkl':
-            druLoc = self.read_pickle_data(os.path.join(path, 'drusen.pkl'))
-            self.drusen = np.zeros(self.scans.shape)
-            self.drusen[druLoc] = 255
-
-        else:
-            if self.saveFormat == 'png':
-                nameing = 'drusen.png'
-                drusen = self.load_images(path, nameing)
-            else:
-                try:
-                    naming = 'binmask.tif'
-                    drusen = self.load_images(path, naming)
-                except:
-                    raise Exception('No layers found for loading')
-
-        drusen[drusen > 0] = 1
-        # drusen = self.filter_drusen_by_size(drusen)
-        # if (hfilter > 0):
-        #    drusen = self.filter_druse_by_max_height(drusen, hfilter)
-
-        self.drusen = drusen * 255
-
-        if self.evaluateDrusen:
-            self.get_GT_drusen()
-
-        return self.drusen
 
     def get_drusen(self, hfilter=0):
         """
@@ -927,15 +914,6 @@ class OCT:
         return self.drusen
         """
 
-    def compute_drusen(self):
-        if self.drusenSegmenter is None:
-            logger.debug('Setting drusenSegmenter')
-            self.drusenSegmenter = drusenextractor.DrusenSeg(self.controller)
-
-        self.drusen = self.drusenSegmenter.get_drusen_seg_polyfit(self.layers)*255
-
-        return self.drusen
-
     def get_enface(self):
         """
         Read or create the enface projection image.
@@ -951,7 +929,7 @@ class OCT:
                 self.get_layers()
                 projection, masks = self.produce_drusen_projection_image(useWarping=True)
                 projection /= np.max(projection) if np.max(projection) != 0.0 else 1.0
-                self.enface = (projection * 255).astype(int)#
+                self.enface = (projection * 255).astype(int)  #
                 self.enfaceBBox = dict()
                 # misc.imsave(os.path.join(self.scanPath,"enface.png"),self.enface)
                 self.controller.set_progress_bar_value(100)
@@ -1031,6 +1009,60 @@ class OCT:
     def get_druse_info(self):
         return self.cx, self.cy, self.area, self.height, self.volume, \
                self.largeR, self.smallR, self.theta
+
+    ## Setters
+
+    def set_slice_edited(self, sliceNum, layerName, status):
+        if layerName == 'RPE':
+            self.editedLayers[sliceNum - 1]['RPE'] = status
+        elif layerName == 'BM':
+            self.editedLayers[sliceNum - 1]['BM'] = status
+
+    def set_evaluation_schemes(self, evaluateLayers, evaluateDrusen):
+        self.evaluateLayers = evaluateLayers
+        self.evaluateDrusen = evaluateDrusen
+
+
+
+    def compute_layers(self):
+        """
+
+        :return:
+        """
+        # Use Caffe to create initial layer segmentation
+        self.layerSegmenter = deeplearning.DeepLearningLayerSeg(self)
+        # TODO: Function returns layers and sets probMaps. Make this explicit
+        layers = self.layerSegmenter.get_layer_seg_from_deepnet(self.scans)
+        layers[:, :, :] = self.convert_indices(layers[:, :, :])
+        probmaps = np.transpose(self.probmaps, (1, 0, 2, 3)).astype('float16')
+        self.probmaps = probmaps
+
+        progressVal = self.get_progress_val()
+        self.set_progress_val(progressVal + 2)
+        self.update_progress_bar()
+
+        # try:
+        #    self.certainSlices = list(np.where(np.loadtxt(os.path.join(probPath, \
+        #                                                               'prob-entropy.txt')) == 0.05)[0])
+        # except:
+        #    self.certainSlices = list()
+
+        self.progressBarValue = 100
+        self.controller.set_progress_bar_value(self.progressBarValue)
+        self.controller.hide_progress_bar()
+        QtGui.QApplication.processEvents()
+        return layers, probmaps
+
+    def compute_drusen(self):
+        if self.drusenSegmenter is None:
+            logger.debug('Setting drusenSegmenter')
+            self.drusenSegmenter = drusenextractor.DrusenSeg(self.controller)
+
+        self.drusen = self.drusenSegmenter.get_drusen_seg_polyfit(self.layers)*255
+
+        return self.drusen
+
+
 
     def hrf_exist_in_slice(self, sliceNum):
         s = np.sum(self.hrfs[:, :, sliceNum - 1])
@@ -1254,46 +1286,7 @@ class OCT:
         else:
             return False
 
-    def load_probmaps(self):
-        path = os.path.join(self.scanPath, 'probabilityMaps')
 
-        try:
-            nameing = 'layers.tif'
-            self.controller.show_progress_bar()
-            self.progressBarValue = 1
-            self.controller.set_progress_bar_value(self.progressBarValue)
-
-            self.probmaps = np.zeros(self.scans.shape[:2], +(4,), self.scans.shape[-1])
-            files = [f for f in os.path.listdir(path) if os.path.isfile(os.path.join(path, f))]
-            stepsize = 100 / len(files)
-            for filename in files:
-                i, j, ftype = filename.split('-')
-                if ftype == nameing:
-                    self.probmaps[:, :, j, i] = io.imread(filename)
-
-                self.controller.update_progress_bar_value(stepsize)
-
-            self.controller.hide_progress_bar()
-        except:
-            raise Exception('No probability maps found for loading')
-
-        self.layerSegmenter.layers = self.layers
-
-    def get_probmaps(self):
-        """
-
-        :return:
-        """
-        if self.probmaps is None:
-            try:
-                self.probmaps = self.load_probmaps()
-            except:
-                self.layers, self.probmaps = self.compute_layers()
-
-        if self.layerSegmenter is None:
-            self.layerSegmenter = deeplearning.DeepLearningLayerSeg(self)
-
-        return self.probmaps
 
     def compute_uncertainties(self):
         self.layerSegmenter.compute_segmentation_uncertainty(self.certainSlices)
@@ -1722,8 +1715,11 @@ class OCT:
         """
 
         file_header = iovol.get_vol_header(filepath)
+        # SLO is Scanning Laser Ophthalmoskopie -> NIR
         slo = iovol.get_slo_image(filepath, file_header)
         b_hdrs, b_seglines, b_scans = iovol.get_bscan_images(filepath, file_header, improve_constrast='hist_match')
+
+        self.slo = slo
 
         self.scanIDs = list(range(1, file_header['NumBScans'] + 1))[:2]
         self.scans = b_scans[:, :, :2]
@@ -1774,12 +1770,12 @@ class OCT:
                 if ftype == 'Input.tif':
                     ind.append(int(fname.split('-')[0]))
 
-                    raw = self.rgb_to_gray(io.imread(os.path.join(root, fname)))
+                    raw = self.rgb_to_gray(imageio.imread(os.path.join(root, fname)))
                     rawSize = raw.shape
                     rawStackDict[ind[-1]] = raw
                 else:
                     try:
-                        raw = self.rgb_to_gray(io.imread(os.path.join(root, fname)))
+                        raw = self.rgb_to_gray(imageio.imread(os.path.join(root, fname)))
                     except:
                         print "Warning reading file:" + fname + " is not image."
                         continue
