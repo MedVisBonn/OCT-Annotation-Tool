@@ -1721,8 +1721,8 @@ class OCT:
 
         self.slo = slo
 
-        self.scanIDs = list(range(1, file_header['NumBScans'] + 1))[:2]
-        self.scans = b_scans[:, :, :2]
+        self.scanIDs = list(range(1, file_header['NumBScans'] + 1))
+        self.scans = b_scans[:, :, :]
         self.numSlices = self.scans.shape[2]
         self.width = self.scans.shape[1]
         self.height = self.scans.shape[0]
