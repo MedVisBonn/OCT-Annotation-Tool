@@ -13,9 +13,10 @@ import scipy as sc
 import pandas as pd
 from scipy import misc
 import os, sys, inspect
+from PyQt4 import QtGui
 import qimage2ndarray as q2np
 
-from PyQt4 import QtGui
+
 from bresenham import bresenham
 from skimage.filters import threshold_otsu
 
