@@ -3,3 +3,6 @@ venv/
 .idea/
 *.caffemodel
 *.egg-info/
+*.bat
+*.ini
+log.txt
