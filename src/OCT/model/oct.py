@@ -455,7 +455,7 @@ class OCT:
             self.controller.set_progress_bar_value(self.progressBarValue)
 
             self.probmaps = np.zeros(self.scans.shape[:2], +(4,), self.scans.shape[-1])
-            files = [f for f in os.path.listdir(path) if os.path.isfile(os.path.join(path, f))]
+            files = [f for f in listdir(path) if isfile(os.path.join(path, f))]
             stepsize = 100 / len(files)
             for filename in files:
                 i, j, ftype = filename.split('-')

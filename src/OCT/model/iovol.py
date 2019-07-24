@@ -1,6 +1,5 @@
 from struct import unpack
 import numpy as np
-from scipy import misc
 import os
 import cv2
 from skimage.exposure import cumulative_distribution
