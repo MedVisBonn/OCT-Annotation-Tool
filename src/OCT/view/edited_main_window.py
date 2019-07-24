@@ -1772,7 +1772,7 @@ class Ui_MainWindow(object):
         # Set window size. 
         w.resize(320, 240)
         # Get file name
-        filename=QtGui.QFileDialog.getExistingDirectory(w,'Open Dir',lastPath)
+        filename=str(QtGui.QFileDialog.getExistingDirectory(w,'Open Dir',lastPath))
         self.statusbar.showMessage(filename)
         
         return filename 
