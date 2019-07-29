@@ -13,10 +13,9 @@ import scipy as sc
 import pandas as pd
 from scipy import misc
 import os, sys, inspect
-from PyQt4 import QtGui
 import qimage2ndarray as q2np
 
-
+from PyQt4 import QtGui
 from bresenham import bresenham
 from skimage.filters import threshold_otsu
 
@@ -168,7 +167,7 @@ class OCTController:
         """
         Opens an OCT volume.
         """
-        debug=False
+        debug=True
         evaluateLayers=False
         evaluateDrusen=False
         if(debug):
@@ -178,7 +177,7 @@ class OCTController:
                 scanPath="/home/gorgi/Desktop/Data/Data/210715_145"
             else:
 #                scanPath="/home/gorgi/Desktop/OCT-UnderExtention/OCT/dummyData/210715_145"
-                scanPath="/home/gorgi/Desktop/OCT-Editting-November-ForMaximilian/OCT-Editing-Tool/src/OCT/dummyData/220814_145"
+                scanPath="/home/gorgi/Desktop/DOM039 R 31.05.2016 145"
             self.lastScanPath=scanPath
         else:
             scanPath=self.mainWindowUi.get_scan_path(self.lastScanPath)
@@ -320,6 +319,7 @@ class OCTController:
         if(probmapsExist):
             self.visualize_uncertainties()
             self.mainWindowUi.set_edited_layers(self.oct.get_edited_layers())
+            
     def get_enface_drusen(self):
         """
         Compute the enface projection of drusen maps and visualize it.
@@ -1233,11 +1233,11 @@ class OCTController:
         self.oct.compute_prob_maps()
         self.oct.compute_uncertainties()
         
-    def apply_threshold_immediately(self):
+    def apply_threshold_immediately(self,scope='bscan'):
         """
         Drusen height thresholding all over the segmentation map.
         """
-        self.mainWindowUi.apply_threshold_immediately()
+        self.mainWindowUi.apply_threshold_immediately(scope)
     
     def apply_split_redo(self):
         """
@@ -1592,7 +1592,7 @@ class OCTController:
             # First filter druse with filteringHeight
             heightProjection=np.sum((dReg>0).astype(int),axis=0)
             dReg[:,heightProjection<=filteringHeight]=0.          
-
+#            self.show_image(np.sum((dReg>0).astype(int),axis=0).T)
             # Filter drusen with maxFilteringHeight
             dReg=self.oct.filter_druse_by_max_height(dReg,maxFilteringHeight)
             xs,ys,zs=np.where(dReg!=tmp)
@@ -2416,5 +2416,6 @@ if __name__ == "__main__":
 #         "/home/gorgi/Desktop/DataProducedFromUNet/OCT-Data-For-DrusenSegmenter/")
 #     octController.mainWindow.show()
 #==============================================================================
+#    octController.mainWindow.show()
     octController.mainWindow.showMaximized()
     sys.exit(app.exec_())

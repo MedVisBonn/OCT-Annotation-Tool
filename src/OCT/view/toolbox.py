@@ -366,7 +366,17 @@ class Ui_toolBox(object):
         self.gridLayout_2.addWidget(self.toolButtonSetNormalThickness, 1, 3, 1, 1)
 
 
-
+        self.toolButtonAll = QtGui.QToolButton(self.groupBox_toolBox)
+        self.toolButtonAll.setMinimumSize(QtCore.QSize(34, 34))
+        self.toolButtonAll.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
+        icon477 = QtGui.QIcon()
+        icon477.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
+            "icons","icons","normal--.png"))),\
+            QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.toolButtonAll.setIcon(icon477)
+        self.toolButtonAll.setObjectName(_fromUtf8("toolButtonAll"))
+        self.gridLayout_2.addWidget(self.toolButtonAll, 3, 3, 1, 1)
+        
         
         self.toolButtonBBox = QtGui.QToolButton(self.groupBox_toolBox)
         self.toolButtonBBox.setMinimumSize(QtCore.QSize(34, 34))
@@ -726,6 +736,7 @@ class Ui_toolBox(object):
         self.toolButtonFill.clicked.connect(self.fill_action)
         self.toolButtonMorphology.clicked.connect(self.morphology_action)
         self.toolButtonSetNormalThickness.clicked.connect(self.set_normal_thickness_action)
+        self.toolButtonAll.clicked.connect(self.all_action)
         self.toolButtonDrawDru.clicked.connect(self.draw_dru_action)
         self.toolButtonFilterDru.clicked.connect(self.filter_dru_action)
         self.toolButtonGrab.clicked.connect(self.grab_action)
@@ -969,7 +980,11 @@ class Ui_toolBox(object):
             self.controller.write_in_log(self.controller.get_time()+','+\
             self.toolButtonFilterDruImm.objectName()+','+\
             self.get_current_active_window()+'\n')
-            self.controller.apply_threshold_immediately()
+            activeWindow=self.get_active_edit_index()
+            if(activeWindow==2):
+                self.controller.apply_threshold_immediately(scope="bscan")
+            if(activeWindow==3):
+                self.controller.apply_threshold_immediately(scope="volume")
         elif(self.lastClickedButton is self.toolButtonSplitDrusen):
             self.controller.apply_splitting_threshold()
         elif(self.lastClickedButton is self.toolButtonSetNormalThickness):
@@ -1056,7 +1071,8 @@ class Ui_toolBox(object):
             self.get_current_active_window()+'\n')
         self.enable_set_normal_thickness_tools()
 #        self.controller.activate_morphology(self.morghologyValue)
-        
+    def all_action(self):
+        pass
     def draw_dru_action(self):
         if(self.sizingToolsEnabled):
             self.disable_size_tools()

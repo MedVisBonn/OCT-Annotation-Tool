@@ -112,6 +112,9 @@ class OCT:
         self.evaluateDrusen=False
         
         self.numTiles=None
+        
+        self.widthFilterThreshold=1
+        self.heightToWidthRatioInBScanThreshold=-1
     
     def set_num_of_tiles(self,num):
         self.numTiles=num
@@ -2294,24 +2297,52 @@ class OCT:
         filtered_mask[np.where(w_o_h == 0.0)] = 0.0
 
         return filtered_mask
+    
         
     def filter_druse_by_max_height(self,drusenImg,maxHeight):
         if(maxHeight==0):
             return drusenImg
         if(len(drusenImg.shape)<3):
             cca, num_drusen = sc.ndimage.measurements.label( drusenImg )
+            w = self.compute_component_width(cca)
+            drusenImg[np.where(w<=self.widthFilterThreshold)] = 0.0
+            
+            cca, num_drusen = sc.ndimage.measurements.label( drusenImg )
             h  = self.compute_component_max_height( cca )
             drusenImg[np.where(h<=maxHeight)] = 0.0
+            
+            cca, num_drusen = sc.ndimage.measurements.label( drusenImg )
+            w = self.compute_component_width(cca)
+            drusenImg[np.where(w<=self.widthFilterThreshold)] = 0.0
         else:
             heightProjection=np.sum((drusenImg>0).astype(int),axis=0)
             
             cca, num_drusen = sc.ndimage.measurements.\
                                       label((heightProjection>0).astype('int'))
+                                      
             h  = self.compute_component_max_height(cca,heightProjection)
             heightProjection[np.where(h<=maxHeight)] = 0.0
-            
+                                      
             y,s=np.where(heightProjection==0)
             drusenImg[:,y,s]=0.
+            
+            for it in range(drusenImg.shape[2]):
+                bscan=drusenImg[:,:,it]
+                cca, num_drusen = sc.ndimage.measurements.label( bscan )
+                w = self.compute_component_width(cca)
+                bscan[np.where(w<=self.widthFilterThreshold)] = 0.0
+                
+            heightProjection=np.sum((drusenImg>0).astype(int),axis=0)
+            
+            cca, num_drusen = sc.ndimage.measurements.\
+                                      label((heightProjection>0).astype('int'))
+                                      
+            h  = self.compute_component_max_height(cca,heightProjection)
+            heightProjection[np.where(h<=maxHeight)] = 0.0
+                                      
+            y,s=np.where(heightProjection==0)
+            drusenImg[:,y,s]=0.
+            
         return drusenImg
         
     def warp_BM(self, seg_img, returnWarpedImg=False ):
@@ -2381,7 +2412,9 @@ class OCT:
             region = cca == l
             max_hs[region] = np.max( region * heights )
         return max_hs
-        
+     
+    
+    
     def compute_width_height_ratio_height_local_max(self,cca ):
         mx_h = self.compute_component_sum_local_max_height( cca )
         mx_w = self.compute_component_width( cca )
@@ -2411,10 +2444,11 @@ class OCT:
         for l in labels:
             if( l != bg_lbl ):
                 y, x = np.where( cca == l )
-                w = np.max(x) - np.min(x)
+                w = np.max(x) - np.min(x) +1
                 max_ws[cca == l] = w
         return max_ws
-        
+    
+    
     def find_rel_maxima(self, arr ):
         val = []
         pre = -1

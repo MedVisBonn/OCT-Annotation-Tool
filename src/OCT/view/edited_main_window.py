@@ -2096,12 +2096,13 @@ class Ui_MainWindow(object):
         self.activeDruseSplit=True  
         self.splittingThreshold=value
         
-    def apply_threshold_immediately(self): 
-        if(self.subwindowDrusenViewerUI is not None):
+    def apply_threshold_immediately(self,scope): 
+        
+        if((self.subwindowDrusenViewerUI is not None) and (scope=='bscan')):
             self.subwindowDrusenViewerUI.graphicsViewImageViewer.\
                 apply_height_threholds()
             
-        if(self.subwindowEnfaceDrusenViewerUI is not None):
+        if(self.subwindowEnfaceDrusenViewerUI is not None and (scope=='volume')):
             self.subwindowEnfaceDrusenViewerUI.graphicsViewImageViewer.\
                 apply_height_threholds()
         
