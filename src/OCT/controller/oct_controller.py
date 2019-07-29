@@ -167,7 +167,7 @@ class OCTController:
         """
         Opens an OCT volume.
         """
-        debug=True
+        debug=False
         evaluateLayers=False
         evaluateDrusen=False
         if(debug):
@@ -196,7 +196,13 @@ class OCTController:
             return 0
         else:
             return 1  
-            
+     
+    def change_mdi_view_to_tile(self):
+        self.mainWindowUi.prepare_special_layout()
+        self.mainWindowUi.mdiArea.setActiveSubWindow(self.mainWindowUi.mdiSubwindowDrusenViewer)
+        self.mainWindowUi.mdiArea.tileSubWindows()
+        self.mainWindowUi.subwindowToolBoxUI.update_toolbox_size()
+        
     def get_current_active_window(self):
         return self.mainWindowUi.get_current_active_window()
         
@@ -289,6 +295,16 @@ class OCTController:
         self.mainWindowUi.set_nga_bbox(ngaBBox)
         self.slice_value_changed(self.currentGANumber,'gaViewer',furtherUpdate=False)
         self.activaViewerSet.add('gaViewer')
+    
+    def get_num_drusen(self):
+        return self.oct.get_drusen().shape[2]
+        
+    def set_current_drusen_number(self,druNum):
+        self.currentDrusenNumber=druNum
+        self.currentEnfaceDrusenNumber=druNum
+        self.currentEnfaceNumber=druNum
+        self.currentLayerNumber=druNum
+
         
     def get_drusen(self):
         self.currentDrusenNumber=1
@@ -301,6 +317,7 @@ class OCTController:
         overlay2=np.copy(npimg)
         self.mainWindowUi.add_overlay([overlay1,overlay2],'drusenViewer',self.scanCoeff)
         self.activaViewerSet.add('drusenViewer')
+    
     
     def get_enface(self):  
         """

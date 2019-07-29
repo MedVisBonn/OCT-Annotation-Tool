@@ -1772,7 +1772,7 @@ class Ui_MainWindow(object):
         # Set window size. 
         w.resize(320, 240)
         # Get file name
-        filename=str(QtGui.QFileDialog.getExistingDirectory(w,'Open Dir',lastPath))
+        filename=QtGui.QFileDialog.getExistingDirectory(w,'Open Dir',lastPath)
         self.statusbar.showMessage(filename)
         
         return filename 
@@ -2185,6 +2185,7 @@ class Ui_MainWindow(object):
             self.mdiSubwindowScanViewer=self.mdiArea.addSubWindow(self.subwindowScanViewer)
             self.subwindowScanViewer.show()
             self.mdiSubwindowScanViewer.adjustSize()
+            
         elif(viewerName=='layerViewer'):
             self.subwindowLayerViewerUI=ui
             self.subwindowLayerViewer=imageEditor
@@ -2195,7 +2196,7 @@ class Ui_MainWindow(object):
             self.subwindowLayerViewerUI.set_max_possible_value(numSlices)
             self.subwindowLayerViewerUI.set_uncertaintyValues(uncertaintyValues,\
                 entropyVals,probVals)
-            self.mdiArea.addSubWindow(self.subwindowLayerViewer)
+            self.mdiSubwindowLayerViewer=self.mdiArea.addSubWindow(self.subwindowLayerViewer)
             self.subwindowLayerViewer.show()
         elif(viewerName=='hrfViewer'):
             self.subwindowHRFViewerUI=ui
@@ -2204,7 +2205,7 @@ class Ui_MainWindow(object):
                 "Hyperreflective Foci Map Editor", None))
             self.subwindowHRFViewerUI.graphicsViewImageViewer.set_main_image(image)
             self.subwindowHRFViewerUI.set_max_possible_value(numSlices)
-            self.mdiArea.addSubWindow(self.subwindowHRFViewer)
+            self.mdiSubwindowHRFViewer=self.mdiArea.addSubWindow(self.subwindowHRFViewer)
             self.subwindowHRFViewer.show()
         elif(viewerName=='gaViewer'):
             self.subwindowGAViewerUI=ui
@@ -2213,7 +2214,7 @@ class Ui_MainWindow(object):
                 "Geographic Atrophy Map Editor", None))
             self.subwindowGAViewerUI.graphicsViewImageViewer.set_main_image(image)
             self.subwindowGAViewerUI.set_max_possible_value(numSlices)
-            self.mdiArea.addSubWindow(self.subwindowGAViewer)
+            self.mdiSubwindowGAViewer=self.mdiArea.addSubWindow(self.subwindowGAViewer)
             self.subwindowGAViewer.show()
         elif(viewerName=='drusenViewer'):
             self.subwindowDrusenViewerUI=ui
@@ -2222,7 +2223,7 @@ class Ui_MainWindow(object):
                 "Drusen Map Editor", None))
             self.subwindowDrusenViewerUI.graphicsViewImageViewer.set_main_image(image)
             self.subwindowDrusenViewerUI.set_max_possible_value(numSlices)
-            self.mdiArea.addSubWindow(self.subwindowDrusenViewer)
+            self.mdiSubwindowDrusenViewer=self.mdiArea.addSubWindow(self.subwindowDrusenViewer)
             self.subwindowDrusenViewer.show()
         elif(viewerName=='enfaceViewer'):   
             self.subwindowEnfaceViewerUI=ui
@@ -2231,17 +2232,32 @@ class Ui_MainWindow(object):
                 "Enface Viewer", None))
             self.subwindowEnfaceViewerUI.graphicsViewImageViewer.set_main_image(image)
             self.subwindowEnfaceViewerUI.set_max_possible_value(numSlices)
-            self.mdiArea.addSubWindow(self.subwindowEnfaceViewer)
+            self.mdiSubwindowEnfaceViewer=self.mdiArea.addSubWindow(self.subwindowEnfaceViewer)
             self.subwindowEnfaceViewer.show()
         elif(viewerName=='enfaceDrusenViewer'):
+          
+#            self.mdiArea.removeSubWindow(self.mdiSubwindowScanViewer)
+#            self.mdiArea.removeSubWindow(self.mdiSubwindowLayerViewer)
+#            self.hide_subwindow(self.subwindowToolBox)
+#            self.hide_subwindow(self.subwindowLayerViewer)
+#            self.hide_subwindow(self.subwindowScanViewer)
+            
+            
             self.subwindowEnfaceDrusenViewerUI=ui
             self.subwindowEnfaceDrusenViewer=imageEditor
             self.subwindowEnfaceDrusenViewer.setWindowTitle(_translate(\
                 "MainWindow", "Enface Drusen Editor", None))
             self.subwindowEnfaceDrusenViewerUI.graphicsViewImageViewer.set_main_image(image)
             self.subwindowEnfaceDrusenViewerUI.set_max_possible_value(numSlices)
-            self.mdiArea.addSubWindow(self.subwindowEnfaceDrusenViewer)
+#            self.mdiSubwindowToolBox=self.mdiArea.addSubWindow(self.subwindowToolBox)
+#            self.mdiSubwindowDrusenViewer=self.mdiArea.addSubWindow(self.subwindowDrusenViewer)
+            self.mdiSubwindowEnfaceDrusenViewer=self.mdiArea.addSubWindow(self.subwindowEnfaceDrusenViewer)
+            
+#            self.mdiSubwindowDrusenViewer.show()
+#            self.subwindowToolBox.show()
+#            self.subwindowDrusenViewer.show()
             self.subwindowEnfaceDrusenViewer.show()
+            
         self.activate_tool_for_window()
         
     def add_overlay(self,overlayImages,viewerName,coeff=0.0):    
@@ -2526,7 +2542,7 @@ class Ui_MainWindow(object):
                     (not self.subwindowToolBoxUI is  None)):
                 self.oct_controller.write_in_log(self.oct_controller.get_time()+\
                     ','+self.action_Toolbox.objectName()+'\n')
-                self.mdiArea.addSubWindow(self.subwindowToolBox)
+                self.mdiSubwindowToolBox=self.mdiArea.addSubWindow(self.subwindowToolBox)
                 self.subwindowToolBox.show()
                 self.action_Toolbox.setChecked(True)
                 self.action_Toolbox.setEnabled(False)
@@ -2554,7 +2570,7 @@ class Ui_MainWindow(object):
             
         else:
             if(self.actionFindLayers.isEnabled()):
-                self.mdiArea.addSubWindow(self.subwindowLayerViewer)
+                self.mdiSubwindowLayerViewer=self.mdiArea.addSubWindow(self.subwindowLayerViewer)
                 self.subwindowLayerViewer.show()
                 self.actionFindLayers.setChecked(True)
                 self.actionFindLayers.setEnabled(False)
@@ -2570,7 +2586,7 @@ class Ui_MainWindow(object):
             self.actionMeasureDrusen.setEnabled(True)
         else:
             if(self.actionFindDrusen.isEnabled()):
-                self.mdiArea.addSubWindow(self.subwindowDrusenViewer)
+                self.mdiSubwindowDrusenViewer=self.mdiArea.addSubWindow(self.subwindowDrusenViewer)
                 self.subwindowDrusenViewer.show()
                 self.actionFindDrusen.setChecked(True)
                 self.actionFindDrusen.setEnabled(False)
@@ -2585,13 +2601,14 @@ class Ui_MainWindow(object):
             self.actionShowEnface.setEnabled(False)
         else:
             if(self.actionShowEnface.isEnabled()):
-                self.mdiArea.addSubWindow(self.subwindowEnfaceViewer)
+                self.mdiSubwindowEnfaceViewer=self.mdiArea.addSubWindow(self.subwindowEnfaceViewer)
                 self.subwindowEnfaceViewer.show()
                 self.actionShowEnface.setChecked(True)
                 self.actionShowEnface.setEnabled(False)
         self.activate_tool_for_window()
         
     def show_enface_drusen_action(self):
+        
         if(self.subwindowEnfaceDrusenViewerUI is None):
             self.oct_controller.write_in_log(self.oct_controller.get_time()+\
                 ','+self.actionShowEnfaceDrusen.objectName()+'\n')
@@ -2600,7 +2617,10 @@ class Ui_MainWindow(object):
             self.actionShowEnfaceDrusen.setEnabled(False)
         else:
             if(self.actionShowEnfaceDrusen.isEnabled()):
-                self.mdiArea.addSubWindow(self.subwindowEnfaceDrusenViewer)
+                
+                
+                
+                self.mdiSubwindowEnfaceDrusenViewer=self.mdiArea.addSubWindow(self.subwindowEnfaceDrusenViewer)
                 self.subwindowEnfaceDrusenViewer.show()
                 self.actionShowEnfaceDrusen.setChecked(True)
                 self.actionShowEnfaceDrusen.setEnabled(False)
@@ -2611,6 +2631,17 @@ class Ui_MainWindow(object):
         
         vol=self.oct_controller.get_PED_volume()
         self.show_PED_volume(vol,0.1)
+
+    def prepare_special_layout(self):
+        pass
+#        for ss in self.mdiArea.subWindowList():
+#            self.mdiArea.removeSubWindow(ss)
+#        self.mdiSubwindowDrusenViewer=self.mdiArea.addSubWindow(self.subwindowDrusenViewer)
+#        self.mdiSubwindowEnfaceDrusenViewer=self.mdiArea.addSubWindow(self.subwindowEnfaceDrusenViewer)
+#        self.mdiSubwindowToolBox=self.mdiArea.addSubWindow(self.subwindowToolBox)
+#        self.subwindowDrusenViewer.show()
+#        self.subwindowEnfaceDrusenViewer.show()
+#        self.subwindowToolBox.show()
 
     def update_drusen_table(self,cx,cy,area,height,volume,largeR,smallR,theta):
         self.uiDrusenInfoTable.set_data(cx,cy,area,height,volume,largeR,smallR,theta)
