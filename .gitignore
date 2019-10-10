@@ -2,3 +2,5 @@
 *.bat
 *.pyc
 log.txt
+.*
+venv/
