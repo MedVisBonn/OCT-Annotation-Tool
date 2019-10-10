@@ -39,7 +39,7 @@ from oct import OCT
 #==============================================================================
 # Main controller class of the OCT Editor. 
 #==============================================================================
-class OCTController:
+class OCTController(object):
     def __init__(self,app):
         self.oct=OCT(self)
         self.mainWindow=None
@@ -96,7 +96,7 @@ class OCTController:
         self.mainWindowUi.oct_controller=self
         
         self.enfaceDrusenViewOpen=False
-        self.lastScanPath=''
+        self._lastScanPath=''
         
         self.lineS=[]
         self.lineY=[]
@@ -105,7 +105,15 @@ class OCTController:
         self.lineRedoValues=[]
         self.seenPoints=set()
         self.app=app
-        
+
+    @property
+    def lastScanPath(self):
+        return self._lastScanPath
+
+    @lastScanPath.setter
+    def lastScanPath(self, value):
+        self._lastScanPath = str(value)
+
     def delete_previous(self):
         """
         When a scan is completely closed. Cleans up the views and values.
@@ -475,7 +483,9 @@ class OCTController:
             self.mainWindowUi.saved_changes()   
             
     def save_as(self):
-        dirName=self.mainWindowUi.get_save_path(self.lastScanPath,'drusen',self.oct.saveFormat)
+        dirName=self.mainWindowUi.get_save_path(self.lastScanPath)
+        if str(dirName) == "":
+            return None
         self.lastScanPath=dirName
         if(self.drusenEditted or self.enfaceDrusenEditted):
             self.oct.set_scan_path(self.lastScanPath)

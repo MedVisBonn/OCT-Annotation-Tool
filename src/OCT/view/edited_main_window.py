@@ -1780,13 +1780,13 @@ class Ui_MainWindow(object):
     def set_status_bar(self,path):
         self.statusbar.showMessage(path)
    
-    def get_save_path(self,lastPath,fname='',saveFormat=''):
+    def get_save_path(self, lastPath):
         # The QWidget widget is the base class of all user interface objects in PyQt4.
         w = QtGui.QWidget(self.centralwidget)
         # Set window size. 
         w.resize(320, 240)
         # Get file name
-        filename = QtGui.QFileDialog.getExistingDirectory(w, 'Save Dir', '')
+        filename = QtGui.QFileDialog.getExistingDirectory(w, 'Patient Folder', lastPath, QtGui.QFileDialog.ShowDirsOnly)
         return filename 
         
     def show_progress_bar(self,message="Loading"):

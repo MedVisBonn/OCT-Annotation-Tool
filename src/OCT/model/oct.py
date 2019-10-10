@@ -34,11 +34,11 @@ octParams['zRate'] = 2 #every 13 pixels for low resolution, every two pixels for
 #==============================================================================
 # OCT class contains the OCT volume, and related segmentation maps
 #==============================================================================
-class OCT:
+class OCT(object):
 
     def __init__(self,controller):
         self.saveFormat='png'
-        self.scanPath=""
+        self._scanPath=""
         self.bResolution=''
         self.hx=200./17. #x axis in each B-scan
         self.hy=200./51. #y axis in each B-scan 
@@ -112,6 +112,14 @@ class OCT:
         self.evaluateDrusen=False
         
         self.numTiles=None
+
+    @property
+    def scanPath(self):
+        return self._scanPath
+
+    @scanPath.setter
+    def scanPath(self, value):
+        self._scanPath = str(value)
     
     def set_num_of_tiles(self,num):
         self.numTiles=num
