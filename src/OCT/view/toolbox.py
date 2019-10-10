@@ -366,7 +366,17 @@ class Ui_toolBox(object):
         self.gridLayout_2.addWidget(self.toolButtonSetNormalThickness, 1, 3, 1, 1)
 
 
-
+        self.toolButtonAll = QtGui.QToolButton(self.groupBox_toolBox)
+        self.toolButtonAll.setMinimumSize(QtCore.QSize(34, 34))
+        self.toolButtonAll.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
+        icon477 = QtGui.QIcon()
+        icon477.addPixmap(QtGui.QPixmap(_fromUtf8(os.path.join(sfwPath,"view",\
+            "icons","icons","normal--.png"))),\
+            QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.toolButtonAll.setIcon(icon477)
+        self.toolButtonAll.setObjectName(_fromUtf8("toolButtonAll"))
+        self.gridLayout_2.addWidget(self.toolButtonAll, 3, 3, 1, 1)
+        
         
         self.toolButtonBBox = QtGui.QToolButton(self.groupBox_toolBox)
         self.toolButtonBBox.setMinimumSize(QtCore.QSize(34, 34))
@@ -726,6 +736,7 @@ class Ui_toolBox(object):
         self.toolButtonFill.clicked.connect(self.fill_action)
         self.toolButtonMorphology.clicked.connect(self.morphology_action)
         self.toolButtonSetNormalThickness.clicked.connect(self.set_normal_thickness_action)
+        self.toolButtonAll.clicked.connect(self.all_action)
         self.toolButtonDrawDru.clicked.connect(self.draw_dru_action)
         self.toolButtonFilterDru.clicked.connect(self.filter_dru_action)
         self.toolButtonGrab.clicked.connect(self.grab_action)
@@ -836,6 +847,7 @@ class Ui_toolBox(object):
         self.toolButtonCheckComp.setText(_translate("toolBox", "...", None))
         self.toolButtonMorphology.setText(_translate("toolBox", "...", None))
         self.toolButtonSetNormalThickness.setText(_translate("toolBox","...",None))
+        self.toolButtonAll.setText(_translate("toolBox","Aut",None))
         self.toolButtonDrawDru.setText(_translate("toolBox", "...", None))
         self.toolButtonFilterDru.setText(_translate("toolBox", "...", None))
         self.toolButtonSplitDrusen.setText(_translate("toolBox","...",None))
@@ -901,7 +913,9 @@ class Ui_toolBox(object):
         
         self.toolButtonSetNormalThickness.setToolTip("Set normal expected"+\
             " distance between RPE and BM layers to extract drusen.")
-                                             
+         
+        self.toolButtonAll.setToolTip("...")
+                                    
         self.toolButtonDrawDru.setToolTip("Auto Annotate Tool: Automatically"+\
             " draws druse/HRF in selected area with left click.\nErase "+\
             "druse/HRF in selected area.")
@@ -969,7 +983,11 @@ class Ui_toolBox(object):
             self.controller.write_in_log(self.controller.get_time()+','+\
             self.toolButtonFilterDruImm.objectName()+','+\
             self.get_current_active_window()+'\n')
-            self.controller.apply_threshold_immediately()
+            activeWindow=self.get_active_edit_index()
+            if(activeWindow==2):
+                self.controller.apply_threshold_immediately(scope="bscan")
+            if(activeWindow==3):
+                self.controller.apply_threshold_immediately(scope="volume")
         elif(self.lastClickedButton is self.toolButtonSplitDrusen):
             self.controller.apply_splitting_threshold()
         elif(self.lastClickedButton is self.toolButtonSetNormalThickness):
@@ -1056,6 +1074,57 @@ class Ui_toolBox(object):
             self.get_current_active_window()+'\n')
         self.enable_set_normal_thickness_tools()
 #        self.controller.activate_morphology(self.morghologyValue)
+    def all_action(self):
+        self.controller.change_mdi_view_to_tile()
+        self.controller.show_progress_bar("Segmenting drusen...")
+        self.controller.set_progress_bar_value(1)
+        self.normalThicknessValue=0
+        
+        self.controller.extract_drunsen_using_normal_thickness(self.normalThicknessValue,scope="volume")
+        self.controller.set_progress_bar_value(50)
+        self.thresholdAllValue=4
+        self.thresholdMaxValue=5
+        self.controller.activate_filter_dru(self.thresholdAllValue,\
+            self.thresholdMaxValue)
+        self.controller.max_threshold_value_changed(self.thresholdMaxValue)
+        self.controller.all_threshold_value_changed(self.thresholdAllValue)
+        self.controller.normal_thickness_value_changed(self.normalThicknessValue)
+        self.controller.apply_threshold_immediately(scope="volume")
+        self.controller.set_progress_bar_value(100)
+        # Go through all B-scans, apply thresholds
+        numBscans=self.controller.get_num_drusen()
+        pStep=(100)/float(max(1,numBscans))
+        for i in range(1,numBscans+1):
+            self.controller.update_progress_bar_value(pStep)
+            self.controller.set_current_drusen_number(i)
+            self.controller.slice_value_changed(i,'drusenViewer',furtherUpdate=False,stop=False)
+            self.controller.slice_value_changed(i,'enfaceDrusenViewer',furtherUpdate=False,stop=False)
+            self.controller.apply_threshold_immediately(scope="bscan")
+            
+        self.controller.set_progress_bar_value(100)
+        self.controller.hide_progress_bar() 
+        
+        
+#==============================================================================
+#         if(self.lastClickedButton is self.toolButtonFilterDru):
+#             self.controller.write_in_log(self.controller.get_time()+','+\
+#             self.toolButtonFilterDruImm.objectName()+','+\
+#             self.get_current_active_window()+'\n')
+#             activeWindow=self.get_active_edit_index()
+#             if(activeWindow==2):
+#                 self.controller.apply_threshold_immediately(scope="bscan")
+#             if(activeWindow==3):
+#                 self.controller.apply_threshold_immediately(scope="volume")
+#         elif(self.lastClickedButton is self.toolButtonSplitDrusen):
+#             self.controller.apply_splitting_threshold()
+#         elif(self.lastClickedButton is self.toolButtonSetNormalThickness):
+#             activeWindow=self.get_active_edit_index()
+#             if(activeWindow==2):
+#                 self.controller.extract_drunsen_using_normal_thickness(self.normalThicknessValue,scope="bscan")
+#             if(activeWindow==3):
+#                 self.controller.extract_drunsen_using_normal_thickness(self.normalThicknessValue,scope="volume")
+#==============================================================================
+                
         
     def draw_dru_action(self):
         if(self.sizingToolsEnabled):
@@ -1236,7 +1305,11 @@ class Ui_toolBox(object):
         self.labelInfoHeight.setText('Height:')
         self.labelInfoVolume.setText('Volume:')
         self.labelInfoBrightness.setText('Brightness:')
-        
+    
+    def update_toolbox_size(self):
+        self.toolBox.update()
+        self.update_further()
+    
     def hide_druse_info(self):
         self.groupBoxDruseInfo.hide()
         
