@@ -56,7 +56,7 @@ Dataset
 
 To test the Annotation-Tool you can use the exemplary OCT volume scan in the ``data/OCT-Volume-Scan`` folder. To provide a reference for RPE and BM layer segmentation, a medical expert performed a careful manual correction of an initial segmentation, spending about 10 minutes per B-scan on average, adding up to a total of 26 hours. This ground truth is available at the ``data/RPE-BM-Layers`` directory, where each image is a segmentation map for RPE (upper layer) and BM (lower layer). Also, ``data/OCT-Info.xml`` file includes additional information about the OCT volume scan such as B-scan quality (marked by ``<ImageQuality>`` tag), size of each B-scan pixel in micrometer (marked by ``<ScaleX>``, ``<ScaleY>`` tags), and start and end location of B-scans (marked by ``<X>`` and ``<Y>`` tags in ) in the axial direction as represented here.
 
-.. image::(https://raw.githubusercontent.com/MedVisBonn/OCT-Annotation-Tool/blob/master/images/img.png)
+.. image::https://raw.githubusercontent.com/MedVisBonn/OCT-Annotation-Tool/blob/master/images/img.png
 
 
 Reference
