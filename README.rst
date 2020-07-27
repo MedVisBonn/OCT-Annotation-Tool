@@ -58,8 +58,19 @@ To test the Annotation-Tool you can use the exemplary OCT volume scan in the ``d
 
 .. image:: ./images/img.png
 
+In addition, we have reproduced and modified the algorithm proposed by Chen et al. [2], which can be used for segmenting drusen in OCT images. For this refer to:
+https://github.com/MedVisBonn/DrusenSegmentation-ModifiedChen/ 
+Python scripts in this repository can also be used to estimate drusen segmentation accuracy using overlapping ratio (OR), absolute drusen area difference (ADAD), or drusen volume.
 
-Reference
+
+References
+----------
+
+[1] Shekoufeh Gorgi Zadeh, Maximilian W.M. Wintergerst, Thomas Schultz: Uncertainty-Guided Semi-Automated Editing of CNN-based Retinal Layer Segmentations in Optical Coherence Tomography. In: Proc. EG Workshop on Visual Computing for Biology and Medicine (VCBM), pp. 107-115, Eurographics, 2018.
+
+[2] Chen, Qiang, et al. "Automated drusen segmentation and quantification in SD-OCT images." Medical image analysis 17.8 (2013): 1058-1072.
+
+Cite
 ----------
 
 If you use our software as part of a scientific project, please cite the corresponding publication
