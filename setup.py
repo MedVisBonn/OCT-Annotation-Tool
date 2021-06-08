@@ -11,7 +11,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['numpy==1.14.3', 'scipy==1.1.0', 'qimage2ndarray==1.6', 'bresenham==0.2','matplotlib==2.2.2','pillow==5.1.0','pandas==0.23.0','sklearn==0.0','h5py==2.7.1','image==1.5.24','scikit-image==0.14.0','opencv-python==3.4.1.15']
+requirements = ['numpy==1.14.3', 'scipy==1.1.0', 'qimage2ndarray==1.6', 'bresenham==0.2','matplotlib==2.2.2','pillow==8.2.0','pandas==0.23.0','sklearn==0.0','h5py==2.7.1','image==1.5.24','scikit-image==0.14.0','opencv-python==3.4.1.15']
 
 setup_requirements = [ ]
 
