@@ -9,4 +9,4 @@ sklearn==0.0
 h5py==2.7.1
 image==1.5.24
 scikit-image==0.14.0
-opencv-python==3.4.1.15
+opencv-python==3.4.7.28
