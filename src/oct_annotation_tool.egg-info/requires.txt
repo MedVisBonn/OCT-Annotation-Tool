@@ -3,7 +3,7 @@ scipy==1.1.0
 qimage2ndarray==1.6
 bresenham==0.2
 matplotlib==2.2.2
-pillow==6.2.0
+pillow==9.3.0
 pandas==0.23.0
 sklearn==0.0
 h5py==2.7.1
